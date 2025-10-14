@@ -8,7 +8,7 @@ transformed into a JSON file, then send towards a specific directory.
 3) 
 
 example of JSON file : 
------------------------------------------
+---
 msg_id	"e383e44e79887623678d9ae9"
 source	"opensky"
 icao	"46b826"
@@ -24,6 +24,7 @@ vr	13.98
 alt_geom	4953
 squawk	"0106"
 on_ground	0
--------------------------------------------
+
 NB : 
 The timestamp ts_unix is in Unix time, which counts the number of seconds since January 1, 1970, 00:00:00 UTC.
+

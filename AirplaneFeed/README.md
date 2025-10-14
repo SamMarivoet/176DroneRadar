@@ -6,7 +6,7 @@ transformed into a JSON file, then send towards a specific directory.
 1) pick up data from a feeder website : Opensky is used
 2)  adsb-dev-collector contains a python script (main.py) which will open the website, collect the infos, create a JSON file for each airplane, and send it out on a specific directory (adsb-dev-uploader). Actually, we don't have any directory because no access yet to a database. So we only plot the received data (adsb-pipeline/data).
 NB: to send the JSON files to the database --> change in adsb-dev-uploader
-- - - - - - - - -
+
 EXAMPLE OF JSON FILE  : 
 
 msg_id	"e383e44e79887623678d9ae9"
@@ -24,7 +24,7 @@ vr	13.98
 alt_geom	4953
 squawk	"0106"
 on_ground	0
-- - - - - - - - -  -
+
 NB : 
 
 The timestamp ts_unix is in Unix time, which counts the number of seconds since January 1, 1970, 00:00:00 UTC.
@@ -108,6 +108,7 @@ Helps controllers identify the aircraft on radar.
 15) on_ground: 0
 
 Boolean: 0 = airborne, 1 = on the ground.
+
 
 
 

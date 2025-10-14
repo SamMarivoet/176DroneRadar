@@ -27,8 +27,6 @@ on_ground	0  //
 
 NB : 
 
-The timestamp ts_unix is in Unix time, which counts the number of seconds since January 1, 1970, 00:00:00 UTC.
-
 1) msg_id: "e383e44e79887623678d9ae9"
 
 This is a unique identifier for the message sent by the aircraft. Think of it like a “message serial number.”
@@ -55,11 +53,7 @@ Country of registration of the aircraft.
 
 6) ts_unix: 1760433315
 
-The timestamp in Unix time (seconds since 1970-01-01 UTC) when this data point was recorded.
-
-You can convert it to human-readable time:
-
-1760433315 → Thursday, October 14, 2025, 18:55:15 UTC
+The timestamp ts_unix is in Unix time, which counts the number of seconds since January 1, 1970, 00:00:00 UTC.
 
 7) lat: 50.6545
 
@@ -108,6 +102,7 @@ Helps controllers identify the aircraft on radar.
 15) on_ground: 0
 
 Boolean: 0 = airborne, 1 = on the ground.
+
 
 
 

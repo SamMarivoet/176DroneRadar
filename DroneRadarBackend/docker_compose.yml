@@ -1,41 +1,38 @@
 version: '3.8'
 services:
-mongo:
-image: mongo:6
-restart: unless-stopped
-environment:
-MONGO_INITDB_ROOT_USERNAME: root
-MONGO_INITDB_ROOT_PASSWORD: example
-volumes:
-- mongo-data:/data/db
-ports:
-- '27017:27017'
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - '27017:27017'
 
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://root:example@mongo:27017
+      - MONGO_DB=planesdb
+      - PORT=8000
+    ports:
+      - '8000:8000'
 
-backend:
-build: ./backend
-restart: unless-stopped
-depends_on:
-- mongo
-environment:
-- MONGO_URI=mongodb://root:example@mongo:27017
-- MONGO_DB=planesdb
-- PORT=8000
-ports:
-- '8000:8000'
-
-
-ingest:
-build: ./ingest
-restart: 'no'
-depends_on:
-- backend
-environment:
-- API_URL=http://backend:8000
-# mount a host folder with incoming JSON files when running locally
-# volumes:
-# - ./sample_json:/input_json
-
+  ingest:
+    build: ./ingest
+    restart: 'no'
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:8000
+    # mount a host folder with incoming JSON files when running locally
+    # volumes:
+    #   - ./sample_json:/input_json
 
 volumes:
-mongo-data:
+  mongo-data:

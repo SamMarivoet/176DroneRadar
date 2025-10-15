@@ -1,7 +1,8 @@
-version: '3.8'
 services:
   adsb-web-gui:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     image: adsb-web-gui:latest
     container_name: adsb-web-gui
     ports:

@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+adsb-web-gui:
+build: ./backend
+image: adsb-web-gui:latest
+container_name: adsb-web-gui
+ports:
+- "8080:8080" # UI and API served together
+volumes:
+- ./frontend:/app/frontend:ro
+# mount the directory where your collector writes JSON files
+- ./adsb-pipeline/data:/data:ro
+restart: unless-stopped

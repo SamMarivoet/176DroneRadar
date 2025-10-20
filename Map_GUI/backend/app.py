@@ -85,6 +85,18 @@ def api_file(filename):
 
 
 
+@app.route('/api/reports')
+def get_reports():
+    reports = []
+    for file in os.listdir(DATA_DIR):
+        if file.endswith('.json'):
+            with open(os.path.join(DATA_DIR, file)) as f:
+                reports.append(json.load(f))
+    return jsonify(reports)
+
+
+
+
 # static assets (index.html + app.js) are served by Flask's static handling above
 
 

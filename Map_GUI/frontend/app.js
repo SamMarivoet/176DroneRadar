@@ -1,68 +1,55 @@
-const map = L.map('map').setView([50.85, 4.35], 8); // centered over RMA/Belgium
+const map = L.map('map').setView([50.85, 4.35], 7);
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '© OpenStreetMap'
+  maxZoom: 19,
 }).addTo(map);
 
+async function loadSightings() {
+  const response = await fetch('/api/reports'); // backend endpoint that lists JSON reports
+  const sightings = await response.json();
 
-let markers = {}; // icao -> marker
+  sightings.forEach(sighting => {
+    const color = getMarkerColor(sighting.drone_type);
+    const radius = getMarkerRadius(sighting.altitude);
 
+    const marker = L.circleMarker([sighting.latitude, sighting.longitude], {
+      color,
+      fillColor: color,
+      fillOpacity: 0.8,
+      radius
+    }).addTo(map);
 
-async function fetchLatest() {
-  try {
-    const res = await fetch('/api/aircraft/latest');
-    const list = await res.json();
-    updateMap(list);
-  } catch (e) {
-    console.error(e);
+    marker.bindPopup(`
+      <b>${capitalize(sighting.drone_type)} Drone</b><br>
+      Altitude: ${sighting.altitude}<br>
+      ${sighting.description}<br>
+      <small>${new Date(sighting.timestamp).toLocaleString()}</small>
+    `);
+  });
+}
+
+function getMarkerColor(type) {
+  switch (type) {
+    case 'consumer': return 'green';
+    case 'commercial': return 'blue';
+    case 'military': return 'red';
+    case 'racing': return 'orange';
+    default: return 'gray';
   }
 }
 
-
-function updateMap(list) {
-  const ul = document.getElementById('planes');
-  ul.innerHTML = '';
-  const seen = new Set();
-  list.forEach(item => {
-    const icao = item.icao || item.icao24 || 'unknown';
-    seen.add(icao);
-    const lat = item.lat || item.latitude || 0;
-    const lon = item.lon || item.longitude || 0;
-    const flight = item.flight || item.callsign || '';
-    const alt = item.alt || item.alt_geom || item.geo_alt || 0;
-
-
-    // marker
-    if (markers[icao]) {
-      markers[icao].setLatLng([lat, lon]);
-      markers[icao].bindPopup(`<b>${flight}</b><br>${icao}<br>alt ${alt} m`);
-    } else {
-      const m = L.marker([lat, lon]).addTo(map).bindPopup(`<b>${flight}</b><br>${icao}<br>alt ${alt} m`);
-      markers[icao] = m;
-    }
-
-
-    // list entry
-    const li = document.createElement('li');
-    li.innerHTML = `<b>${flight}</b> (${icao}) &nbsp; ${lat.toFixed(4)}, ${lon.toFixed(4)} &nbsp; alt ${Math.round(alt)} m`;
-    ul.appendChild(li);
-  });
-
-
-  // remove markers not seen
-  Object.keys(markers).forEach(icao => { if (!seen.has(icao)) { map.removeLayer(markers[icao]); delete markers[icao]; }});
+function getMarkerRadius(altitude) {
+  switch (altitude) {
+    case '0-50m (low)': return 5;
+    case '50-150m (medium)': return 8;
+    case '150-400m (high)': return 11;
+    case '+400m (very high)': return 14;
+    default: return 6;
+  }
 }
 
-
-let timer = null;
-function startPolling() {
-  const interval = Number(document.getElementById('poll').value) * 1000;
-  if (timer) clearInterval(timer);
-  fetchLatest();
-  timer = setInterval(fetchLatest, interval);
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-
-document.getElementById('poll').addEventListener('change', startPolling);
-document.getElementById('refresh').addEventListener('click', fetchLatest);
-startPolling();
+loadSightings();

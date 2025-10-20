@@ -1,17 +1,10 @@
+cat test_plane.json
 {
-  "msg_id": "test123",
-  "source": "sim",
-  "icao": "TEST01",
-  "flight": "SIM001",
-  "country": "Testland",
-  "ts_unix": 1760433315,
-  "lat": 50.6545,
-  "lon": 4.8988,
-  "alt": 4724.4,
-  "spd": 203.99,
-  "heading": 125.45,
-  "vr": 13.98,
-  "alt_geom": 4953,
-  "squawk": "0106",
-  "on_ground": 0
+  "id": "report_001",
+  "latitude": 50.8477,
+  "longitude": 4.3491,
+  "drone_type": "military",
+  "altitude": "50-150m (medium)",
+  "description": "Black drone hovering over city",
+  "timestamp": "2025-10-20T18:42:00Z"
 }

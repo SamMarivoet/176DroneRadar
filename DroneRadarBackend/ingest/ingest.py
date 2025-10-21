@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Generator, Tuple, Any
 
 import requests
+import time
 from dotenv import load_dotenv
 
 
@@ -62,6 +63,24 @@ def post_payload(api_url: str, payload: Any, timeout: int = 10) -> requests.Resp
     url = api_url.rstrip('/') + '/planes/bulk'
     headers = {'Content-Type': 'application/json'}
     return requests.post(url, json=payload, headers=headers, timeout=timeout)
+
+
+def wait_for_backend(api_url: str, timeout: float = 1.0, attempts: int = 30) -> bool:
+    """Poll the backend /health endpoint until it responds or attempts are exhausted.
+
+    Returns True if backend became healthy, False otherwise.
+    """
+    url = api_url.rstrip('/') + '/health'
+    for i in range(attempts):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.ok:
+                logger.debug('Backend healthy at %s (attempt %d)', url, i + 1)
+                return True
+        except requests.RequestException:
+            logger.debug('Backend not ready yet (%s) attempt %d/%d', url, i + 1, attempts)
+        time.sleep(1)
+    return False
 
 
 def process_files(api_url: str, input_dir: str, pattern: str = '*.json', delete_on_success: bool = False) -> None:

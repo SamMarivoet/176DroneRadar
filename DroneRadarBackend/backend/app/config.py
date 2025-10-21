@@ -6,9 +6,8 @@ class Settings(BaseSettings):
     MONGO_DB: str = 'planesdb'
     PORT: int = 8000
 
-
-class Config:
-    env_file = '.env'
+    class Config:
+        env_file = '.env'
 
 
 settings = Settings()

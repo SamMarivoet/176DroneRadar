@@ -1,13 +1,10 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional
-from datetime import datetime
-
+from datetime import datetime  # Import for MongoDB-compatible datetime
 
 class Position(BaseModel):
-    # GeoJSON Point: [longitude, latitude]
     type: str = Field('Point', const=True)
     coordinates: list[float] = Field(..., min_items=2, max_items=2)
-
 
     @validator('coordinates')
     def coords_range(cls, v):
@@ -15,7 +12,6 @@ class Position(BaseModel):
         if not (-180 <= lon <= 180 and -90 <= lat <= 90):
             raise ValueError('coordinates must be [lon, lat] in valid ranges')
         return v
-
 
 class PlaneIn(BaseModel):
     icao24: str
@@ -29,7 +25,6 @@ class PlaneIn(BaseModel):
     speed: Optional[float] = None
     last_seen: Optional[datetime] = None
 
-
     def to_db(self):
         doc = dict(
             icao24=self.icao24,
@@ -37,6 +32,7 @@ class PlaneIn(BaseModel):
             altitude=self.altitude,
             track=self.track,
             speed=self.speed,
+            last_seen=self.last_seen,
         )
         # prefer explicit position (GeoJSON) if provided, otherwise fall back to latitude/longitude
         if self.position is not None:
@@ -44,10 +40,7 @@ class PlaneIn(BaseModel):
             doc['position'] = {'type': self.position.type, 'coordinates': self.position.coordinates}
         elif self.latitude is not None and self.longitude is not None:
             doc['position'] = {'type': 'Point', 'coordinates': [self.longitude, self.latitude]}
-        if self.last_seen:
-            doc['last_seen'] = self.last_seen
         return {k: v for k, v in doc.items() if v is not None}
-
 
 class PlaneOut(BaseModel):
     icao24: str
@@ -57,7 +50,6 @@ class PlaneOut(BaseModel):
     speed: Optional[float] = None
     last_seen: Optional[datetime] = None
     position: Optional[Position] = None
-
 
     class Config:
         orm_mode = True

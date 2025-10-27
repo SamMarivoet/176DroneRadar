@@ -1,17 +1,6 @@
-<<<<<<< HEAD
-﻿fastapi==0.95.2
-=======
 fastapi==0.95.2
->>>>>>> d2e8c31a6fe70289d93161a505fc1ed22bc7d81b
 uvicorn[standard]==0.22.0
 pymongo==4.3.3
 motor==3.1.1
-<<<<<<< HEAD
 pydantic==1.10.13
 python-dotenv==1.0.0
-=======
-pymongo==4.3.3
-pydantic==1.10.7
-python-dotenv==1.0.0
-
->>>>>>> d2e8c31a6fe70289d93161a505fc1ed22bc7d81b

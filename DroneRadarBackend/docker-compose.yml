@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   mongo:
     image: mongo:6
@@ -31,8 +30,10 @@ services:
     environment:
       - API_URL=http://backend:8000
     # mount a host folder with incoming JSON files when running locally
-    # volumes:
-    #   - ./sample_json:/input_json
+    # the ingest script runs with WORKDIR=/app and expects './input_json'
+    # so mount to /app/input_json (relative path ./input_json inside container)
+    volumes:
+      - ./sample_json:/app/input_json
 
 volumes:
-  mongo-data:
+  mongo-data: 

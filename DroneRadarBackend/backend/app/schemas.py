@@ -22,6 +22,8 @@ class PlaneIn(BaseModel):
     callsign: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    # accept GeoJSON position objects too (some sources send position as GeoJSON)
+    position: Optional[Position] = None
     altitude: Optional[float] = None
     track: Optional[float] = None
     speed: Optional[float] = None
@@ -36,7 +38,11 @@ class PlaneIn(BaseModel):
             track=self.track,
             speed=self.speed,
         )
-        if self.latitude is not None and self.longitude is not None:
+        # prefer explicit position (GeoJSON) if provided, otherwise fall back to latitude/longitude
+        if self.position is not None:
+            # ensure it's a plain dict suitable for storage
+            doc['position'] = {'type': self.position.type, 'coordinates': self.position.coordinates}
+        elif self.latitude is not None and self.longitude is not None:
             doc['position'] = {'type': 'Point', 'coordinates': [self.longitude, self.latitude]}
         if self.last_seen:
             doc['last_seen'] = self.last_seen

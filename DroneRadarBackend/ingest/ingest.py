@@ -55,7 +55,8 @@ def find_json_files(folder: Path, pattern: str = '*.json') -> Generator[Path, No
 
 
 def load_json_file(path: Path) -> Any:
-    text = path.read_text(encoding='utf-8')
+    # Use 'utf-8-sig' to gracefully handle files that include a UTF-8 BOM
+    text = path.read_text(encoding='utf-8-sig')
     return json.loads(text)
 
 

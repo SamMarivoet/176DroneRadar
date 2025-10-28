@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -15,6 +15,12 @@ class Position(BaseModel):
         if not (-180 <= lon <= 180 and -90 <= lat <= 90):
             raise ValueError('coordinates must be [lon, lat] in valid ranges')
         return v
+
+
+class PositionSnapshot(BaseModel):
+    """A historical snapshot of a plane's position and the recorded timestamp."""
+    position: Position
+    last_seen: Optional[datetime] = None
 
 
 class PlaneIn(BaseModel):
@@ -57,6 +63,10 @@ class PlaneOut(BaseModel):
     speed: Optional[float] = None
     last_seen: Optional[datetime] = None
     position: Optional[Position] = None
+    # history of previous positions (oldest -> newest). Each entry stores the
+    # historical GeoJSON point and the last_seen timestamp that was recorded
+    # for that snapshot. This allows reconstructing flight paths.
+    position_history: Optional[List[PositionSnapshot]] = None
 
 
     class Config:

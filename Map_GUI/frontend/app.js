@@ -4,50 +4,66 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
+let droneLayer = L.layerGroup().addTo(map);
+let planeLayer = L.layerGroup().addTo(map);
+
 async function loadSightings() {
-  const resp = await fetch('/api/reports');
-  const reports = await resp.json();
+  try {
+    const resp = await fetch('/api/reports');
+    const reports = await resp.json();
 
-  reports.forEach(r => {
-    const color = getMarkerColor(r.drone_type);
-    const radius = getMarkerRadius(r.altitude);
-    const marker = L.circleMarker([r.latitude, r.longitude], {
-      color,
-      fillColor: color,
-      fillOpacity: 0.8,
-      radius
-    }).addTo(map);
+    droneLayer.clearLayers();
 
-    marker.bindPopup(`
-      <b>${capitalize(r.drone_type)} Drone</b><br>
-      Altitude: ${r.altitude}<br>
-      ${r.description}<br>
-      <small>${new Date(r.timestamp).toLocaleString()}</small>
-    `);
-  });
+    reports.forEach(r => {
+      const color = getMarkerColor(r.drone_type);
+      const radius = getMarkerRadius(r.altitude);
+      const marker = L.circleMarker([r.latitude, r.longitude], {
+        color,
+        fillColor: color,
+        fillOpacity: 0.8,
+        radius
+      }).bindPopup(`
+        <b>${capitalize(r.drone_type)} Drone</b><br>
+        Altitude: ${r.altitude}<br>
+        ${r.description}<br>
+        <small>${new Date(r.timestamp).toLocaleString()}</small>
+      `);
+
+      droneLayer.addLayer(marker);
+    });
+  } catch (err) {
+    console.error('Error loading drone reports:', err);
+  }
 }
 
 async function loadPlanes() {
-  const resp = await fetch('/api/planes');
-  const data = await resp.json();
-  const planes = data.planes || [];
+  try {
+    const resp = await fetch('/api/planes');
+    const data = await resp.json();
+    const planes = data.planes || [];
 
-  planes.forEach(p => {
-    const icon = L.icon({
-      iconUrl: 'icons/plane.png',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
+    planeLayer.clearLayers();
+
+    planes.forEach(p => {
+      const icon = L.icon({
+        iconUrl: 'icons/plane.png',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      const marker = L.marker([p.lat, p.lon], { icon }).bindPopup(`
+        <b>Flight ${p.flight}</b><br>
+        Country: ${p.country}<br>
+        Altitude: ${Math.round(p.alt)} m<br>
+        Speed: ${Math.round(p.spd)} km/h<br>
+        Heading: ${Math.round(p.heading)}°
+      `);
+
+      planeLayer.addLayer(marker);
     });
-
-    const marker = L.marker([p.lat, p.lon], { icon }).addTo(map);
-    marker.bindPopup(`
-      <b>Flight ${p.flight}</b><br>
-      Country: ${p.country}<br>
-      Altitude: ${Math.round(p.alt)} m<br>
-      Speed: ${Math.round(p.spd)} km/h<br>
-      Heading: ${Math.round(p.heading)}°
-    `);
-  });
+  } catch (err) {
+    console.error('Error loading planes:', err);
+  }
 }
 
 function getMarkerColor(type) {
@@ -74,5 +90,12 @@ function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-loadSightings();
-loadPlanes();
+// --- MAIN UPDATE LOOP ---
+async function updateLoop() {
+  console.log('Update tick at', new Date().toLocaleTimeString());
+  await Promise.all([loadSightings(), loadPlanes()]);
+  document.dispatchEvent(new Event('updateComplete'));
+  setTimeout(updateLoop, 5000);
+}
+
+updateLoop(); // Start it!

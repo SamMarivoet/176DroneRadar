@@ -6,25 +6,48 @@
   <title>ADSB Web GUI</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    html,body,#map { height: 100%; margin: 0; padding: 0 }
-    #sidebar { position: absolute; left: 10px; top: 10px; z-index: 1000; background: white; padding: 8px; border-radius: 6px; max-height: 90vh; overflow: auto }
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #sidebar {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 8px;
+      border-radius: 6px;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      font-family: sans-serif;
+    }
+    #status {
+      font-size: 0.9em;
+      color: gray;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="sidebar">
     <h3>ADSB Feed</h3>
-    <div>Polling interval: <select id="poll">
-      <option value="3">3s</option>
-      <option value="5" selected>5s</option>
-      <option value="10">10s</option>
-    </select></div>
-    <div><button id="refresh">Refresh now</button></div>
+    <p>Updating automatically every 5 seconds.</p>
+    <div id="status">Last update: never</div>
     <ul id="planes"></ul>
   </div>
 
-
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="app.js"></script>
+  <script>
+    // Optional: show last update time from your app.js loop
+    document.addEventListener('updateComplete', () => {
+      document.getElementById('status').textContent =
+        'Last update: ' + new Date().toLocaleTimeString();
+    });
+  </script>
 </body>
 </html>

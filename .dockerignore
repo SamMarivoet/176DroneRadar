@@ -1,0 +1,7 @@
+# Ignore everything
+*
+
+# Allow only the necessary files
+!requirements.txt
+!main.py
+!drone-report-form.html

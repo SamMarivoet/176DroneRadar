@@ -5,14 +5,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 async function loadSightings() {
-  const response = await fetch('/api/reports'); // backend endpoint that lists JSON reports
-  const sightings = await response.json();
+  const resp = await fetch('/api/reports');
+  const reports = await resp.json();
 
-  sightings.forEach(sighting => {
-    const color = getMarkerColor(sighting.drone_type);
-    const radius = getMarkerRadius(sighting.altitude);
-
-    const marker = L.circleMarker([sighting.latitude, sighting.longitude], {
+  reports.forEach(r => {
+    const color = getMarkerColor(r.drone_type);
+    const radius = getMarkerRadius(r.altitude);
+    const marker = L.circleMarker([r.latitude, r.longitude], {
       color,
       fillColor: color,
       fillOpacity: 0.8,
@@ -20,10 +19,33 @@ async function loadSightings() {
     }).addTo(map);
 
     marker.bindPopup(`
-      <b>${capitalize(sighting.drone_type)} Drone</b><br>
-      Altitude: ${sighting.altitude}<br>
-      ${sighting.description}<br>
-      <small>${new Date(sighting.timestamp).toLocaleString()}</small>
+      <b>${capitalize(r.drone_type)} Drone</b><br>
+      Altitude: ${r.altitude}<br>
+      ${r.description}<br>
+      <small>${new Date(r.timestamp).toLocaleString()}</small>
+    `);
+  });
+}
+
+async function loadPlanes() {
+  const resp = await fetch('/api/planes');
+  const data = await resp.json();
+  const planes = data.planes || [];
+
+  planes.forEach(p => {
+    const icon = L.icon({
+      iconUrl: 'icons/plane.png',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+
+    const marker = L.marker([p.lat, p.lon], { icon }).addTo(map);
+    marker.bindPopup(`
+      <b>Flight ${p.flight}</b><br>
+      Country: ${p.country}<br>
+      Altitude: ${Math.round(p.alt)} m<br>
+      Speed: ${Math.round(p.spd)} km/h<br>
+      Heading: ${Math.round(p.heading)}°
     `);
   });
 }
@@ -49,7 +71,8 @@ function getMarkerRadius(altitude) {
 }
 
 function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 loadSightings();
+loadPlanes();

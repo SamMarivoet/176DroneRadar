@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - '27017:27017'
+
+  backend:
+    build:
+      context: ./DroneRadarBackend/backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://root:example@mongo:27017/?authSource=admin
+      - MONGO_DB=planesdb
+      - PORT=8000
+    ports:
+      - '8000:8000'
+
+  form:
+    build:
+      context: ./Form
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:8000
+    ports:
+      - '5000:5000'
+
+  map_gui:
+    build:
+      context: ./Map_GUI/backend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '8080:8080'
+
+  airplane_collector:
+    build:
+      context: ./AirplaneFeed/adsb-pipeline/collector
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:8000
+
+  airplane_uploader:
+    build:
+      context: ./AirplaneFeed/adsb-pipeline/uploader
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:8000
+
+volumes:
+  mongo-data:

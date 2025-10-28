@@ -1,0 +1,74 @@
+{
+  "planes": [
+  {
+    "icao": "44ce66",
+    "flight": "BEL6MY",
+    "country": "Belgium",
+    "lat": 50.9063,
+    "lon": 4.4901,
+    "alt": null,
+    "spd": 0,
+    "heading": 67.5
+  },
+  {
+    "icao": "44cec8",
+    "flight": "OOSVH",
+    "country": "Belgium",
+    "lat": 50.7958,
+    "lon": 5.2205,
+    "alt": 198.12,
+    "spd": 38.18,
+    "heading": 104.04
+  },
+  {
+    "icao": "44819b",
+    "flight": "SUPP108",
+    "country": "Belgium",
+    "lat": 50.9003,
+    "lon": 4.4841,
+    "alt": null,
+    "spd": 7.72,
+    "heading": 241.88
+  },
+  {
+    "icao": "448163",
+    "flight": "BIRD109",
+    "country": "Belgium",
+    "lat": 50.9128,
+    "lon": 4.4929,
+    "alt": null,
+    "spd": 4.63,
+    "heading": 317.81
+  },
+  {
+    "icao": "4481d9",
+    "flight": "MOWR085",
+    "country": "Belgium",
+    "lat": 50.8943,
+    "lon": 4.4905,
+    "alt": null,
+    "spd": 1.54,
+    "heading": 185.62
+  },
+  {
+    "icao": "4481bc",
+    "flight": "SUPP374",
+    "country": "Belgium",
+    "lat": 50.9007,
+    "lon": 4.4866,
+    "alt": null,
+    "spd": 6.69,
+    "heading": 126.56
+  },
+  {
+    "icao": "44a826",
+    "flight": "JAF526",
+    "country": "Belgium",
+    "lat": 51.1548,
+    "lon": 4.1525,
+    "alt": 4617.72,
+    "spd": 175.25,
+    "heading": 41.79
+  }
+ ]
+}

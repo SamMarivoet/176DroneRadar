@@ -1,5 +1,5 @@
-{drones:
-  [
+{
+  "drones": [
     {
       "id": "report_001",
       "latitude": 50.8477,

@@ -13,14 +13,22 @@ async def upsert_plane(plane: PlaneIn):
     create it with `created_at`.
     """
     doc = plane.to_db()
-    filter_ = {'icao24': plane.icao24}
+    # Determine canonical icao value (use 'icao' as the canonical key)
+    canonical_icao = getattr(plane, 'icao', None) or getattr(plane, 'icao24', None)
+    if canonical_icao is None:
+        # No icao present: treat this as a standalone report (insert new doc)
+        new_doc = {**doc, 'created_at': datetime.utcnow(), 'position_history': []}
+        res = await database.db.planes.insert_one(new_doc)
+        return res
+
+    filter_ = {'icao': canonical_icao}
 
     # Try to find existing document first so we can preserve the previous position
     existing = await database.db.planes.find_one(filter_)
 
     if not existing:
         # New document: ensure created_at and optional empty history
-        new_doc = {**doc, 'icao24': plane.icao24, 'created_at': datetime.utcnow(), 'position_history': []}
+        new_doc = {**doc, 'icao': canonical_icao, 'created_at': datetime.utcnow(), 'position_history': []}
         res = await database.db.planes.insert_one(new_doc)
         return res
 
@@ -59,8 +67,8 @@ async def upsert_planes_bulk(planes: List[PlaneIn]):
     return results
 
 
-async def get_plane(icao24: str) -> Optional[dict]:
-    return await database.db.planes.find_one({'icao24': icao24}, projection={'_id': False})
+async def get_plane(icao: str) -> Optional[dict]:
+    return await database.db.planes.find_one({'icao': icao}, projection={'_id': False})
 
 
 async def query_planes_near(lat: float, lon: float, radius_m: int = 5000, limit: int = 100):
@@ -94,5 +102,5 @@ async def query_planes_bbox(min_lat, min_lon, max_lat, max_lon, limit=100):
     return await cursor.to_list(length=limit)
 
 
-async def delete_plane(icao24: str):
-    return await database.db.planes.delete_one({'icao24': icao24})
+async def delete_plane(icao: str):
+    return await database.db.planes.delete_one({'icao': icao})

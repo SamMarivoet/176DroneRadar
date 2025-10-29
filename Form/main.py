@@ -44,14 +44,17 @@ def submit_report():
         if not timestamp or not latitude or not longitude:
             return jsonify({"error": "Timestamp, latitude, and longitude are required."}), 400
 
-        # Build report data
+        # Build report data (unified naming). Keep original field names and
+        # include `source` so backend can identify origin. Add `image_url`.
         report = {
+            "source": "dronereport",
             "timestamp": timestamp,
-            "latitude": latitude,
-            "longitude": longitude,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
             "drone_description": drone_description or None,
             "notes": notes or None,
-            "photo_filename": None
+            "photo_filename": None,
+            "image_url": None,
         }
 
         # Save photo if present
@@ -71,6 +74,8 @@ def submit_report():
             if os.path.exists(photo_path):
                 logger.debug(f"Photo saved successfully at {photo_path}")
                 report["photo_filename"] = photo_filename
+                # For local testing we expose image_url as a relative path under drone-photos
+                report["image_url"] = os.path.join('drone-photos', photo_filename)
             else:
                 logger.error(f"Failed to save photo at {photo_path}")
                 return jsonify({"error": "Failed to save photo"}), 500

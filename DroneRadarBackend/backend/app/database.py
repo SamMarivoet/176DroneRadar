@@ -32,8 +32,8 @@ async def init_db(retries: int = 20, delay: float = 0.5):
             await asyncio.sleep(delay)
 
     # Ensure indexes
-    # unique on icao24
-    await db.planes.create_index('icao24', unique=True)
+    # unique on icao, but only for documents where icao exists (partial index)
+    await db.planes.create_index('icao', unique=True, partialFilterExpression={'icao': {'$exists': True}})
     # Geo index on position (GeoJSON Point)
     await db.planes.create_index([('position', '2dsphere')])
     # Index last_seen to help with pruning and queries

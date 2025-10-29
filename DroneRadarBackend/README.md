@@ -12,7 +12,7 @@ The backend will then be available on http://localhost:8000
 
 - `POST /planes/bulk` — accepts a list of plane objects (JSON) and upserts them.
 - `GET /planes` — query planes; supports `lat` + `lon` + `radius` (metres) or `bbox`.
-- `GET /planes/{icao24}` — get single plane by ICAO24.
+- `GET /planes/{icao}` — get single plane by ICAO.
 - `GET /health` — health check.
 
 ---

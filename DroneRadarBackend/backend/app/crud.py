@@ -13,6 +13,20 @@ async def upsert_plane(plane: PlaneIn):
     create it with `created_at`.
     """
     doc = plane.to_db()
+    # Ensure a canonical `source` exists on the document. The ingestion pipeline
+    # generally sets this (e.g. 'opensky' for ADS-B snapshots, 'dronereport' for form reports).
+    # If missing, attempt a lightweight inference so consumers (UI) can rely on it.
+    if not doc.get('source'):
+        inferred = None
+        # If we have an ICAO identifier, it's ADS-B/OpenSky telemetry
+        if doc.get('icao'):
+            inferred = 'opensky'
+        # Form-style fields indicate a dronereport
+        elif any(k in doc for k in ('drone_description', 'photo_filename', 'notes', 'timestamp', 'latitude', 'longitude')):
+            inferred = 'dronereport'
+        # default to unknown to avoid accidental classification
+        if inferred:
+            doc['source'] = inferred
     # Determine canonical icao value (use 'icao' as the canonical key)
     canonical_icao = getattr(plane, 'icao', None) or getattr(plane, 'icao24', None)
     if canonical_icao is None:

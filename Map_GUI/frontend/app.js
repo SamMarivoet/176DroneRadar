@@ -7,60 +7,64 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let droneLayer = L.layerGroup().addTo(map);
 let planeLayer = L.layerGroup().addTo(map);
 
-async function loadSightings() {
-  try {
-    const resp = await fetch('/api/reports');
-    const reports = await resp.json();
-
-    droneLayer.clearLayers();
-
-    reports.forEach(r => {
-      const color = getMarkerColor(r.drone_type);
-      const radius = getMarkerRadius(r.altitude);
-      const marker = L.circleMarker([r.latitude, r.longitude], {
-        color,
-        fillColor: color,
-        fillOpacity: 0.8,
-        radius
-      }).bindPopup(`
-        <b>${capitalize(r.drone_type)} Drone</b><br>
-        Altitude: ${r.altitude}<br>
-        ${r.description}<br>
-        <small>${new Date(r.timestamp).toLocaleString()}</small>
-      `);
-
-      droneLayer.addLayer(marker);
-    });
-  } catch (err) {
-    console.error('Error loading drone reports:', err);
-  }
-}
-
+// Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {
   try {
     const resp = await fetch('/api/planes');
     const data = await resp.json();
     const planes = data.planes || [];
 
+    // reset layers
+    droneLayer.clearLayers();
     planeLayer.clearLayers();
 
     planes.forEach(p => {
-      const icon = L.icon({
-        iconUrl: 'icons/plane.png',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      });
+      // detect whether this document is a drone report or plane telemetry
+    // Prefer the canonical `source` field; fall back to `producer` or other hints
+    const source = (p.source || p.producer || '').toString().toLowerCase();
+    const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
-      const marker = L.marker([p.lat, p.lon], { icon }).bindPopup(`
-        <b>Flight ${p.flight}</b><br>
-        Country: ${p.country}<br>
-        Altitude: ${Math.round(p.alt)} m<br>
-        Speed: ${Math.round(p.spd)} km/h<br>
-        Heading: ${Math.round(p.heading)}°
-      `);
+      // defensive coordinate extraction
+      const lat = p.lat || p.latitude || (p.position && p.position.coordinates && p.position.coordinates[1]);
+      const lon = p.lon || p.longitude || (p.position && p.position.coordinates && p.position.coordinates[0]);
+      if (typeof lat !== 'number' || typeof lon !== 'number') return;
 
-      planeLayer.addLayer(marker);
+      if (isReport) {
+        const color = getMarkerColor(p.drone_type || 'consumer');
+        const radius = getMarkerRadius(p.altitude || p.alt || '0-50m (low)');
+        const marker = L.circleMarker([lat, lon], {
+          color,
+          fillColor: color,
+          fillOpacity: 0.8,
+          radius
+        }).bindPopup(`
+          <b>${capitalize(p.drone_type || 'Drone')} Report</b><br>
+          Altitude: ${p.altitude || p.alt || ''}<br>
+          ${p.description || ''}<br>
+          <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small>
+        `);
+        droneLayer.addLayer(marker);
+      } else {
+        const icon = L.icon({
+          iconUrl: 'icons/plane.png',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+        const flight = p.flight || p.callsign || p.registration || '';
+        const alt = p.alt || p.altitude || p.geo_alt || 0;
+        const spd = p.spd || p.speed || 0;
+        const heading = p.heading || p.track || 0;
+        const marker = L.marker([lat, lon], { icon }).bindPopup(`
+          <b>Flight ${flight}</b><br>
+          Country: ${p.country || ''}<br>
+          Altitude: ${Math.round(alt)} m<br>
+          Speed: ${Math.round(spd)} km/h<br>
+          Heading: ${Math.round(heading)}°
+        `);
+        planeLayer.addLayer(marker);
+      }
     });
+
   } catch (err) {
     console.error('Error loading planes:', err);
   }
@@ -93,7 +97,7 @@ function capitalize(s) {
 // --- MAIN UPDATE LOOP ---
 async function updateLoop() {
   console.log('Update tick at', new Date().toLocaleTimeString());
-  await Promise.all([loadSightings(), loadPlanes()]);
+  await loadPlanes();
   document.dispatchEvent(new Event('updateComplete'));
   setTimeout(updateLoop, 5000);
 }

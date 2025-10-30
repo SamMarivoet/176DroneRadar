@@ -2,3 +2,4 @@ flask
 watchdog
 gunicorn
 python-dotenv
+requests

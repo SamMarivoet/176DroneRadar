@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
+import requests
 from datetime import datetime
 import json
 import os
@@ -57,36 +58,84 @@ def submit_report():
             "image_url": None,
         }
 
-        # Save photo if present
+        # Handle photo if present: upload to backend images endpoint so images are stored in DB
         if photo and photo.filename:
             logger.debug(f"Processing photo: {photo.filename}")
-            photo_folder = "drone-photos"
-            
-            # Generate timestamp-based filename
+            # create a deterministic filename based on timestamp for readability
             photo_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M")
             photo_filename = f"drone_photo_{photo_timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
-            photo_path = os.path.join(photo_folder, photo_filename)
-            
-            logger.debug(f"Saving photo to: {photo_path}")
-            photo.save(photo_path)
-            
-            # Verify the file was saved
-            if os.path.exists(photo_path):
-                logger.debug(f"Photo saved successfully at {photo_path}")
-                report["photo_filename"] = photo_filename
-                # For local testing we expose image_url as a relative path under drone-photos
-                report["image_url"] = os.path.join('drone-photos', photo_filename)
-            else:
-                logger.error(f"Failed to save photo at {photo_path}")
-                return jsonify({"error": "Failed to save photo"}), 500
+
+            API_URL = os.getenv('API_URL', 'http://backend:8000')
+            images_url = f"{API_URL.rstrip('/')}/images"
+
+            try:
+                # photos come as werkzeug FileStorage; use its stream for multipart upload
+                files = {'file': (photo_filename, photo.stream, photo.content_type)}
+                data = {}
+                # optionally include an icao if present in the form (helps indexing)
+                icao_val = request.form.get('icao')
+                if icao_val:
+                    data['icao'] = icao_val
+
+                resp = requests.post(images_url, files=files, data=data, timeout=15)
+                if resp.status_code in (200, 201):
+                    j = resp.json()
+                    image_id = j.get('image_id')
+                    report['photo_filename'] = photo_filename
+                    report['image_id'] = image_id
+                    # keep image_url as a browser-accessible path as well
+                    report['image_url'] = request.host_url.rstrip('/') + '/' + os.path.join('drone-photos', photo_filename)
+                else:
+                    logger.warning(f"Backend image upload failed: {resp.status_code}")
+                    # fallback to saving locally
+                    photo_folder = "drone-photos"
+                    photo_path = os.path.join(photo_folder, photo_filename)
+                    photo.save(photo_path)
+                    report["photo_filename"] = photo_filename
+                    report["image_url"] = os.path.join('drone-photos', photo_filename)
+            except Exception as e:
+                logger.error(f"Error uploading photo to backend: {e}")
+                # fallback: save locally
+                photo_folder = "drone-photos"
+                photo_path = os.path.join(photo_folder, photo_filename)
+                try:
+                    photo.save(photo_path)
+                    report["photo_filename"] = photo_filename
+                    report["image_url"] = os.path.join('drone-photos', photo_filename)
+                except Exception as e2:
+                    logger.error(f"Failed to save photo locally after upload error: {e2}")
+                    return jsonify({"error": "Failed to save or upload photo"}), 500
                 
-        # Save report JSON
-        filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        filepath = os.path.join("reports", filename)
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(report, f, ensure_ascii=False, indent=2)
-            
-        return jsonify({"status": "ok", "saved_to": filepath})
+        # Compose image_url (make it an absolute URL based on the incoming request so
+        # other services can (optionally) fetch it). If no photo was saved this remains None.
+        if report.get('image_url'):
+            # request.host_url contains scheme+host+port from the browser request
+            report['image_url'] = request.host_url.rstrip('/') + '/' + report['image_url']
+
+        # Attempt to POST the report to the backend ingestion endpoint so form reports
+        # are stored centrally. Use API_URL environment variable if present.
+        API_URL = os.getenv('API_URL', 'http://backend:8000')
+        ingest_url = f"{API_URL.rstrip('/')}/planes/bulk"
+
+        try:
+            resp = requests.post(ingest_url, json=[report], timeout=10)
+            if resp.status_code in (200, 201):
+                return jsonify({"status": "ok", "ingested": True, "backend_response": resp.json()}), 200
+            else:
+                # fallback: save local copy and return error info
+                filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                filepath = os.path.join("reports", filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(report, f, ensure_ascii=False, indent=2)
+                return jsonify({"status": "ok", "ingested": False, "saved_to": filepath, "backend_status": resp.status_code}), 502
+        except requests.RequestException as e:
+            # network/backend failure: persist locally and return error
+            filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = os.path.join("reports", filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+            logger.error(f"Failed to POST to backend ingest endpoint: {e}")
+            return jsonify({"status": "ok", "ingested": False, "saved_to": filepath, "error": str(e)}), 502
         
     except Exception as e:
         logger.error(f"Error processing submission: {str(e)}", exc_info=True)
@@ -132,3 +181,9 @@ def save_photo():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+@app.route('/drone-photos/<path:filename>')
+def serve_photo(filename):
+    """Serve saved photos (used when building absolute image_url values)."""
+    return send_from_directory('drone-photos', filename)

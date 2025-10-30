@@ -53,6 +53,7 @@ class PlaneIn(BaseModel):
     # position and final field requested
     position: Optional[Position] = None
     image_url: Optional[str] = None
+    image_id: Optional[str] = None
 
 
     def to_db(self):
@@ -79,7 +80,7 @@ class PlaneIn(BaseModel):
                 doc[f] = v
 
         # Copy common telemetry/form fields
-        for f in ('alt','spd','heading','vr','alt_geom','image_url'):
+        for f in ('alt','spd','heading','vr','alt_geom','image_url','image_id'):
             v = getattr(self, f, None)
             if v is not None:
                 doc[f] = v
@@ -128,6 +129,7 @@ class PlaneOut(BaseModel):
     position_history: Optional[List[PositionSnapshot]] = None
     # final requested field
     image_url: Optional[str] = None
+    image_id: Optional[str] = None
 
 
     class Config:

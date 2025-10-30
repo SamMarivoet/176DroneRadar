@@ -41,3 +41,19 @@ Notes and developer tips
 Want changes?
 --------------
 If you prefer the frontend served separately (nginx) or want the collector to use a queue again (Redis), I can update the compose and Dockerfiles accordingly.
+
+Stale plane cleanup policy
+--------------------------
+The backend now maintains a small housekeeping field on plane documents named `missed_updates` (integer). This field is used to automatically remove stale aircraft from the database in the default collector-driven workflow:
+
+- New or updated plane documents get `missed_updates = 0` and a `last_seen` timestamp.
+- When the backend receives a batch snapshot from the collector it:
+	- upserts incoming planes (resetting `missed_updates`),
+	- deletes any incoming plane that reports `on_ground: true` (if it has an `icao`), and
+	- increments `missed_updates` by 1 for existing OpenSky-sourced planes that were not present in the current snapshot.
+- Any OpenSky-sourced plane whose `missed_updates` reaches 2 (i.e., missed two consecutive snapshots) is deleted.
+
+Notes and alternatives
+----------------------
+- The field is created automatically when the system runs (no explicit migration needed). A missing `missed_updates` field will be incremented by MongoDB and become 1 on the next update.
+- This consecutive-miss policy is simple and works well for a single collector. If you run multiple independent collectors that post partial snapshots, consider switching to a time-based TTL policy (delete if `last_seen` is older than N seconds) or run a periodic cleanup job — I can implement that change if you prefer.

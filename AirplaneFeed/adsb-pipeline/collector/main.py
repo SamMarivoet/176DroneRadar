@@ -10,8 +10,8 @@ LAMIN = float(os.getenv("LAMIN", "50.5"))
 LAMAX = float(os.getenv("LAMAX", "51.5"))
 LOMIN = float(os.getenv("LOMIN", "3.8"))
 LOMAX = float(os.getenv("LOMAX", "5.5"))
-# default poll every 5 minutes
-POLL = float(os.getenv("POLL_SECONDS", str(60 * 5)))
+# default poll every 30 seconds
+POLL = float(os.getenv("POLL_SECONDS", str(30)))
 # Where to POST the batch (backend service in compose)
 INGEST_URL = os.getenv("INGEST_URL", "http://backend:8000/planes/bulk")
 TOKEN = os.getenv("INGEST_TOKEN", "")

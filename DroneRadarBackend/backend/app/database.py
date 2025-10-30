@@ -1,4 +1,4 @@
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from .config import settings
 import asyncio
 import logging
@@ -7,6 +7,7 @@ logger = logging.getLogger('backend.database')
 
 client: AsyncIOMotorClient = None
 db = None
+gridfs_bucket: AsyncIOMotorGridFSBucket = None
 
 
 async def init_db(retries: int = 20, delay: float = 0.5):
@@ -38,6 +39,10 @@ async def init_db(retries: int = 20, delay: float = 0.5):
     await db.planes.create_index([('position', '2dsphere')])
     # Index last_seen to help with pruning and queries
     await db.planes.create_index('last_seen')
+
+    # create a GridFS bucket for storing uploaded images
+    global gridfs_bucket
+    gridfs_bucket = AsyncIOMotorGridFSBucket(db)
 
 
 async def close_db():

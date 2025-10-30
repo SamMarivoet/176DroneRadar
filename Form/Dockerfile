@@ -1,5 +1,5 @@
 # Use Python 3.13 as specified in uv.lock
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # Set the working directory in the container
 WORKDIR /app

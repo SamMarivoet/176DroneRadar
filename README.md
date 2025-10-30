@@ -33,14 +33,11 @@ docker compose ps
 
 Notes and developer tips
 ------------------------
+- Idk if component level docker-compose will still work, has not been tested and I'm not planning on doing it xx
 - The top-level compose is meant for local development and convenience; individual components also include component-level compose files for per-component testing.
 - The collector is configured to poll OpenSky and POST batches to the backend ingestion endpoint by default. The legacy Redis-based uploader has been archived and removed from the top-level compose.
 - If you need to run only a single component for development (for example the Map GUI or Form), use that component's Dockerfile or component-level compose files.
 - If ports conflict on your machine, edit the port mappings in `docker-compose.yml` or run services individually.
-
-Want changes?
---------------
-If you prefer the frontend served separately (nginx) or want the collector to use a queue again (Redis), I can update the compose and Dockerfiles accordingly.
 
 Stale plane cleanup policy
 --------------------------

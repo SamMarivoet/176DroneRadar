@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:6
@@ -38,12 +36,14 @@ services:
 
   map_gui:
     build:
-      context: ./Map_GUI/backend
+      context: ./Map_GUI
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     depends_on:
       - backend
     ports:
       - '8080:8080'
+
 
   airplane_collector:
     build:
@@ -54,14 +54,40 @@ services:
     environment:
       - API_URL=http://backend:8000
 
-  airplane_uploader:
+  # ingest helper: runs ingest script in DroneRadarBackend/ingest (runs once)
+  ingest:
     build:
-      context: ./AirplaneFeed/adsb-pipeline/uploader
-    restart: unless-stopped
+      context: ./DroneRadarBackend/ingest
+    restart: 'no'
     depends_on:
       - backend
     environment:
       - API_URL=http://backend:8000
+    volumes:
+      - ./DroneRadarBackend/sample_json:/app/input_json
+
+  # helper service to open an interactive mongosh connected to the mongo service
+  mongo-client:
+    image: mongo:6
+    depends_on:
+      - mongo
+    entrypoint: ["mongosh", "mongodb://root:example@mongo:27017/?authSource=admin"]
+    tty: true
+    stdin_open: true
+
+  # lightweight web-based MongoDB admin UI (for development only)
+  mongo-express:
+    image: mongo-express:latest
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_URL: "mongodb://root:example@mongo:27017/?authSource=admin"
+    ports:
+      - '8081:8081'
 
 volumes:
   mongo-data:

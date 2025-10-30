@@ -12,7 +12,3 @@ services:
     depends_on: [redis]
     volumes:
       - ./data:/data
-#  uploader:
- #   build: ./uploader
-  #  env_file: .env
-   # depends_on: [redis]

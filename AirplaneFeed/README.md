@@ -107,4 +107,25 @@ Boolean: 0 = airborne, 1 = on the ground.
 
 
 
+## Current status (2025-10-30)
+
+- The `collector` component (AirplaneFeed/adsb-pipeline/collector) polls OpenSky and posts batches directly to the backend ingestion endpoint. It no longer writes to Redis by default.
+- The previous `uploader` component (which polled Redis and forwarded batches to the backend) has been archived because it is redundant with the collector's direct POST behaviour.
+- The `adsb-pipeline/docker-compose.yml` and the `data/` folder are kept for standalone development and offline testing, but are optional when running the top-level `docker-compose.yml`.
+
+### Quick developer notes
+
+- To run the collector standalone (developer mode):
+	- cd into `AirplaneFeed/adsb-pipeline` and run `docker compose up` there; that compose includes a Redis service for the older uploader flow.
+- To run the whole system (recommended):
+	- from the repo root run `docker compose up --build -d` which will start `backend`, `map_gui`, `form`, `mongo`, `mongo-express`, and the collector.
+- Test data:
+	- `AirplaneFeed/adsb-pipeline/data/opensky_snapshot.json` contains a sample snapshot useful for offline parsing and testing.
+
+If you want the archived `uploader/` folder removed from the repo entirely (instead of keeping it in `archive/`), say so and I can delete it or move it to a branch for safe-keeping.
+
+
+
+
+
 

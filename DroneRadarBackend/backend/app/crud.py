@@ -17,7 +17,7 @@ async def upsert_plane(plane: PlaneIn):
     canonical_icao = getattr(plane, 'icao', None) or getattr(plane, 'icao24', None)
     if canonical_icao is None:
         # No icao present: treat this as a standalone report (insert new doc)
-        new_doc = {**doc, 'created_at': datetime.utcnow(), 'position_history': []}
+        new_doc = {**doc, 'created_at': datetime.utcnow(), 'position_history': [], 'missed_updates': 0}
         res = await database.db.planes.insert_one(new_doc)
         return res
 
@@ -28,13 +28,24 @@ async def upsert_plane(plane: PlaneIn):
 
     if not existing:
         # New document: ensure created_at and optional empty history
-        new_doc = {**doc, 'icao': canonical_icao, 'created_at': datetime.utcnow(), 'position_history': []}
+        new_doc = {**doc, 'icao': canonical_icao, 'created_at': datetime.utcnow(), 'position_history': [], 'missed_updates': 0}
         res = await database.db.planes.insert_one(new_doc)
         return res
 
     # Existing doc: build update
     update: dict = {}
-    set_fields = {**doc, 'updated_at': datetime.utcnow()}
+    # compute a sensible last_seen timestamp: prefer ts_unix if provided
+    ts_unix = doc.get('ts_unix')
+    if isinstance(ts_unix, (int, float)):
+        try:
+            last_seen_val = datetime.utcfromtimestamp(int(ts_unix))
+        except Exception:
+            last_seen_val = datetime.utcnow()
+    else:
+        last_seen_val = datetime.utcnow()
+
+    # reset missed_updates to 0 when we see a fresh update
+    set_fields = {**doc, 'updated_at': datetime.utcnow(), 'last_seen': last_seen_val, 'missed_updates': 0}
 
     # Prepare $push for previous position if present
     push_fields = {}
@@ -57,13 +68,48 @@ async def upsert_plane(plane: PlaneIn):
 
 
 async def upsert_planes_bulk(planes: List[PlaneIn]):
-    # For simplicity and correctness (to preserve history) use sequential upserts.
-    # If throughput becomes a concern, convert to a bulk_write solution that
-    # uses find/update semantics or server-side update pipelines.
+    # Treat the incoming batch as a snapshot for this poll.
+    #  - Upsert any planes present (resetting their missed_updates to 0)
+    #  - If a plane in the incoming batch reports `on_ground` remove it immediately
+    #  - For any existing opensky-sourced plane NOT present in this snapshot,
+    #    increment `missed_updates` and delete those with missed_updates >= 2
     results = []
+    incoming_icaos = []
+
+    # First pass: handle incoming planes
     for p in planes:
+        canonical_icao = getattr(p, 'icao', None) or getattr(p, 'icao24', None)
+        if canonical_icao:
+            incoming_icaos.append(canonical_icao)
+
+        # If plane indicates it's on the ground, remove from DB if we have an icao
+        if getattr(p, 'on_ground', None):
+            if canonical_icao:
+                res = await database.db.planes.delete_one({'icao': canonical_icao})
+                results.append(res)
+            else:
+                # no icao: nothing to remove
+                results.append(None)
+            continue
+
+        # otherwise upsert normally
         r = await upsert_plane(p)
         results.append(r)
+
+    # Second pass: increment missed_updates for opensky planes not seen in this snapshot
+    # Normalize incoming_icaos list for query
+    if incoming_icaos:
+        await database.db.planes.update_many(
+            {'icao': {'$nin': incoming_icaos}, 'source': 'opensky'},
+            {'$inc': {'missed_updates': 1}}
+        )
+    else:
+        # No incoming icao values: increment all opensky planes
+        await database.db.planes.update_many({'source': 'opensky'}, {'$inc': {'missed_updates': 1}})
+
+    # Remove planes which missed >= 2 consecutive snapshots
+    await database.db.planes.delete_many({'source': 'opensky', 'missed_updates': {'$gte': 2}})
+
     return results
 
 

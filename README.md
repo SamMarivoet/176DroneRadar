@@ -54,5 +54,3 @@ Notes and alternatives
 ----------------------
 - The field is created automatically when the system runs (no explicit migration needed). A missing `missed_updates` field will be incremented by MongoDB and become 1 on the next update.
 - This consecutive-miss policy is simple and works well for a single collector. If you run multiple independent collectors that post partial snapshots, consider switching to a time-based TTL policy (delete if `last_seen` is older than N seconds) or run a periodic cleanup job — I can implement that change if you prefer.
-
-.

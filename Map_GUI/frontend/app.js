@@ -54,13 +54,17 @@ async function loadPlanes() {
         const alt = p.alt || p.altitude || p.geo_alt || 0;
         const spd = p.spd || p.speed || 0;
         const heading = p.heading || p.track || 0;
-        const marker = L.marker([lat, lon], { icon }).bindPopup(`
-          <b>Flight ${flight}</b><br>
-          Country: ${p.country || ''}<br>
-          Altitude: ${Math.round(alt)} m<br>
-          Speed: ${Math.round(spd)} km/h<br>
-          Heading: ${Math.round(heading)}°
-        `);
+
+        const marker = L.marker([lat, lon], {icon,
+        rotationAngle: heading, // heading in degrees
+        rotationOrigin: 'center center'
+        }).bindPopup(`
+        <b>Flight ${flight}</b><br>
+        Country: ${p.country || ''}<br>
+        Altitude: ${Math.round(alt)} m<br>
+        Speed: ${Math.round(spd)} km/h<br>
+        Heading: ${Math.round(heading)}°
+`);
         planeLayer.addLayer(marker);
       }
     });

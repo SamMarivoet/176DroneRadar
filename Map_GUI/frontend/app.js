@@ -8,7 +8,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let droneLayer = L.layerGroup().addTo(map);
 let planeLayer = L.layerGroup().addTo(map);
-let trailLayer = L.layerGroup().addTo(map); // ✅ new layer for trails
+let trailLayer = L.layerGroup().addTo(map); // ✅ separate layer for trails
 
 // Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {
@@ -17,13 +17,19 @@ async function loadPlanes() {
     const data = await resp.json();
     const planes = data.planes || [];
 
+    // reset layers
+    droneLayer.clearLayers();
+    planeLayer.clearLayers();
+    // trailLayer.clearLayers(); // optional: clear if you want to reset trails
 
     planes.forEach(p => {
+      // detect whether this document is a drone report or plane telemetry
       const source = (p.source || p.producer || '').toString().toLowerCase();
       const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
-      const lat = p.lat || p.latitude || (p.position && p.position.coordinates && p.position.coordinates[1]);
-      const lon = p.lon || p.longitude || (p.position && p.position.coordinates && p.position.coordinates[0]);
+      // defensive coordinate extraction
+      const lat = p.lat || p.latitude || (p.position?.coordinates?.[1]);
+      const lon = p.lon || p.longitude || (p.position?.coordinates?.[0]);
       if (typeof lat !== 'number' || typeof lon !== 'number') return;
 
       if (isReport) {
@@ -69,6 +75,7 @@ async function loadPlanes() {
         if (!planeTrails[flightId]) {
           planeTrails[flightId] = [];
         }
+
         planeTrails[flightId].push([lat, lon]);
         if (planeTrails[flightId].length > 10) {
           planeTrails[flightId].shift();
@@ -125,3 +132,4 @@ async function updateLoop() {
 }
 
 updateLoop(); // Start it!
+

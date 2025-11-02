@@ -1,4 +1,3 @@
-
 const planeTrails = {}; // flight ID → array of LatLngs
 
 const map = L.map('map').setView([50.85, 4.35], 7);
@@ -59,7 +58,7 @@ async function loadPlanes() {
 
         const marker = L.marker([lat, lon], {
           icon,
-          rotationAngle: heading,
+          rotationAngle: heading - 45, // adjust if icon points northeast
           rotationOrigin: 'center center'
         }).bindPopup(`
           <b>Flight ${flight}</b><br>
@@ -130,6 +129,3 @@ async function updateLoop() {
 }
 
 updateLoop(); // Start it!
-```
-
-To download this as a file, click/open the card above. Let me know if you want to add fading trails, directional arrows, or animate the movement!

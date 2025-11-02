@@ -17,10 +17,6 @@ async function loadPlanes() {
     const data = await resp.json();
     const planes = data.planes || [];
 
-    // reset layers
-    droneLayer.clearLayers();
-    planeLayer.clearLayers();
-    // trailLayer.clearLayers(); // optional: clear if you want to reset trails
 
     planes.forEach(p => {
       const source = (p.source || p.producer || '').toString().toLowerCase();

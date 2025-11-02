@@ -56,7 +56,7 @@ async function loadPlanes() {
         const heading = p.heading || p.track || 0;
 
         const marker = L.marker([lat, lon], {icon,
-        rotationAngle: heading, // heading in degrees
+        rotationAngle: heading - 45, // heading in degrees
         rotationOrigin: 'center center'
         }).bindPopup(`
         <b>Flight ${flight}</b><br>

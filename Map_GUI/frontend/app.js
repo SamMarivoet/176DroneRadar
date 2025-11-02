@@ -1,4 +1,5 @@
-const planeTrails = {}; // flight ID → array of LatLngs
+const planeTrails = {};     // flight ID → array of LatLngs
+const trailCurves = {};     // flight ID → array of curve layers
 
 const map = L.map('map').setView([50.85, 4.35], 7);
 
@@ -10,17 +11,15 @@ let droneLayer = L.layerGroup().addTo(map);
 let planeLayer = L.layerGroup().addTo(map);
 let trailLayer = L.layerGroup().addTo(map); // persistent trail layer
 
-// Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {
   try {
     const resp = await fetch('/api/planes');
     const data = await resp.json();
     const planes = data.planes || [];
 
-    // reset layers
     droneLayer.clearLayers();
     planeLayer.clearLayers();
-    // trailLayer.clearLayers(); // optional: clear if you want to reset trails
+    // trailLayer.clearLayers(); // don't clear trails globally
 
     planes.forEach(p => {
       const source = (p.source || p.producer || '').toString().toLowerCase();
@@ -69,10 +68,10 @@ async function loadPlanes() {
         `);
         planeLayer.addLayer(marker);
 
-        // ✅ Use stable flight ID
         const flightId = p.icao24 || p.id || flight || 'unknown';
         if (!planeTrails[flightId]) {
           planeTrails[flightId] = [];
+          trailCurves[flightId] = [];
         }
 
         planeTrails[flightId].push([lat, lon]);
@@ -88,7 +87,14 @@ async function loadPlanes() {
             weight: 2,
             opacity: 0.7
           });
-          trailLayer.addLayer(curve); // ✅ persistent curved trail
+          trailLayer.addLayer(curve);
+          trailCurves[flightId].push(curve);
+
+          // Remove oldest curve after 10 iterations
+          if (trailCurves[flightId].length > 10) {
+            const oldCurve = trailCurves[flightId].shift();
+            trailLayer.removeLayer(oldCurve);
+          }
         }
       }
     });
@@ -131,3 +137,4 @@ async function updateLoop() {
 }
 
 updateLoop(); // Start it!
+

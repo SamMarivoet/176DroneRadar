@@ -8,7 +8,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let droneLayer = L.layerGroup().addTo(map);
 let planeLayer = L.layerGroup().addTo(map);
-let trailLayer = L.layerGroup().addTo(map); // ✅ persistent trail layer
+let trailLayer = L.layerGroup().addTo(map); // persistent trail layer
 
 // Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {
@@ -69,7 +69,8 @@ async function loadPlanes() {
         `);
         planeLayer.addLayer(marker);
 
-        const flightId = flight || `unknown-${lat}-${lon}`;
+        // ✅ Use stable flight ID
+        const flightId = p.icao24 || p.id || flight || 'unknown';
         if (!planeTrails[flightId]) {
           planeTrails[flightId] = [];
         }

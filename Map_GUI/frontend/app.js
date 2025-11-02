@@ -1,5 +1,4 @@
-const planeTrails = {};     // flight ID → array of LatLngs
-const trailCurves = {};     // flight ID → array of curve layers
+const planeTrails = {}; // flight ID → array of LatLngs
 
 const map = L.map('map').setView([50.85, 4.35], 7);
 
@@ -9,24 +8,26 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let droneLayer = L.layerGroup().addTo(map);
 let planeLayer = L.layerGroup().addTo(map);
-let trailLayer = L.layerGroup().addTo(map); // persistent trail layer
 
+// Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {
   try {
     const resp = await fetch('/api/planes');
     const data = await resp.json();
     const planes = data.planes || [];
 
+    // reset layers
     droneLayer.clearLayers();
     planeLayer.clearLayers();
-    // trailLayer.clearLayers(); // don't clear trails globally
 
     planes.forEach(p => {
+      // detect whether this document is a drone report or plane telemetry
       const source = (p.source || p.producer || '').toString().toLowerCase();
       const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
-      const lat = p.lat || p.latitude || (p.position?.coordinates?.[1]);
-      const lon = p.lon || p.longitude || (p.position?.coordinates?.[0]);
+      // defensive coordinate extraction
+      const lat = p.lat || p.latitude || (p.position && p.position.coordinates && p.position.coordinates[1]);
+      const lon = p.lon || p.longitude || (p.position && p.position.coordinates && p.position.coordinates[0]);
       if (typeof lat !== 'number' || typeof lon !== 'number') return;
 
       if (isReport) {
@@ -57,7 +58,7 @@ async function loadPlanes() {
 
         const marker = L.marker([lat, lon], {
           icon,
-          rotationAngle: heading - 45,
+          rotationAngle: heading - 45, // heading in degrees
           rotationOrigin: 'center center'
         }).bindPopup(`
           <b>Flight ${flight}</b><br>
@@ -68,34 +69,25 @@ async function loadPlanes() {
         `);
         planeLayer.addLayer(marker);
 
-        const flightId = p.icao24 || p.id || flight || 'unknown';
+        // ✅ Trail logic must be inside this block
+        const flightId = flight || `unknown-${lat}-${lon}`;
         if (!planeTrails[flightId]) {
           planeTrails[flightId] = [];
-          trailCurves[flightId] = [];
         }
 
         planeTrails[flightId].push([lat, lon]);
+
         if (planeTrails[flightId].length > 10) {
           planeTrails[flightId].shift();
         }
 
-        const coords = planeTrails[flightId];
-        if (coords.length >= 3) {
-          const curvePoints = ['M', coords[0], 'Q', coords[1], coords[2]];
-          const curve = L.curve(curvePoints, {
-            color: 'purple',
-            weight: 2,
-            opacity: 0.7
-          });
-          trailLayer.addLayer(curve);
-          trailCurves[flightId].push(curve);
+        const trail = L.polyline(planeTrails[flightId], {
+          color: 'blue',
+          weight: 2,
+          opacity: 0.6
+        });
 
-          // Remove oldest curve after 10 iterations
-          if (trailCurves[flightId].length > 10) {
-            const oldCurve = trailCurves[flightId].shift();
-            trailLayer.removeLayer(oldCurve);
-          }
-        }
+        planeLayer.addLayer(trail);
       }
     });
 
@@ -137,4 +129,3 @@ async function updateLoop() {
 }
 
 updateLoop(); // Start it!
-

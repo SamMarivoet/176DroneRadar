@@ -77,7 +77,7 @@ async function loadPlanes() {
 
         planeTrails[flightId].push([lat, lon]);
 
-        if (planeTrails[flightId].length > 10) {
+        if (planeTrails[flightId].length > 100) {
           planeTrails[flightId].shift();
         }
 

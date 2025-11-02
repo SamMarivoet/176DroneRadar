@@ -1,3 +1,6 @@
+const planeTrails = {}; // flight ID → array of LatLngs
+
+
 const map = L.map('map').setView([50.85, 4.35], 7);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -97,6 +100,29 @@ function getMarkerRadius(altitude) {
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
+
+const flightId = flight || `unknown-${lat}-${lon}`;
+
+// Initialize trail if needed
+if (!planeTrails[flightId]) {
+  planeTrails[flightId] = [];
+}
+
+// Add current position
+planeTrails[flightId].push([lat, lon]);
+
+// Limit trail length
+if (planeTrails[flightId].length > 10) {
+  planeTrails[flightId].shift();
+}
+
+const trail = L.polyline(planeTrails[flightId], {
+  color: 'blue',
+  weight: 2,
+  opacity: 0.6
+});
+planeLayer.addLayer(trail);
+
 
 // --- MAIN UPDATE LOOP ---
 async function updateLoop() {

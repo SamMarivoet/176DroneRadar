@@ -23,11 +23,9 @@ async function loadPlanes() {
     // trailLayer.clearLayers(); // optional: clear if you want to reset trails
 
     planes.forEach(p => {
-      // detect whether this document is a drone report or plane telemetry
       const source = (p.source || p.producer || '').toString().toLowerCase();
       const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
-      // defensive coordinate extraction
       const lat = p.lat || p.latitude || (p.position?.coordinates?.[1]);
       const lon = p.lon || p.longitude || (p.position?.coordinates?.[0]);
       if (typeof lat !== 'number' || typeof lon !== 'number') return;
@@ -60,7 +58,7 @@ async function loadPlanes() {
 
         const marker = L.marker([lat, lon], {
           icon,
-          rotationAngle: heading - 45, // adjust if icon points northeast
+          rotationAngle: heading - 45,
           rotationOrigin: 'center center'
         }).bindPopup(`
           <b>Flight ${flight}</b><br>
@@ -132,4 +130,3 @@ async function updateLoop() {
 }
 
 updateLoop(); // Start it!
-

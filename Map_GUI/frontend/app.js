@@ -97,7 +97,7 @@ if (coords.length >= 3) {
 }
 
 });
-planeLayer.addLayer(trail);
+
       }
     });
 

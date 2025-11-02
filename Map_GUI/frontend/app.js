@@ -85,10 +85,17 @@ if (planeTrails[flightId].length > 10) {
   planeTrails[flightId].shift();
 }
 
-const trail = L.polyline(planeTrails[flightId], {
-  color: 'blue',
-  weight: 2,
-  opacity: 0.6
+const coords = planeTrails[flightId];
+if (coords.length >= 3) {
+  const curvePoints = ['M', coords[0], 'Q', coords[1], coords[2]];
+  const curve = L.curve(curvePoints, {
+    color: 'purple',
+    weight: 2,
+    opacity: 0.7
+  });
+  planeLayer.addLayer(curve);
+}
+
 });
 planeLayer.addLayer(trail);
       }

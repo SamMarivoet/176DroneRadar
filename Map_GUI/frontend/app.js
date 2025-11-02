@@ -94,11 +94,8 @@ if (coords.length >= 3) {
     opacity: 0.7
   });
   planeLayer.addLayer(curve);
-}
-
-});
-
-      }
+    }
+  }      
     });
 
   } catch (err) {

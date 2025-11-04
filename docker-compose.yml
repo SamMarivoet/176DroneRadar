@@ -44,7 +44,6 @@ services:
     ports:
       - '8080:8080'
 
-
   airplane_collector:
     build:
       context: ./AirplaneFeed/adsb-pipeline/collector
@@ -71,7 +70,7 @@ services:
     image: mongo:6
     depends_on:
       - mongo
-    entrypoint: ["mongosh", "mongodb://root:example@mongo:27017/?authSource=admin"]
+    entrypoint: [ "mongosh", "mongodb://root:example@mongo:27017/?authSource=admin" ]
     tty: true
     stdin_open: true
 
@@ -88,6 +87,23 @@ services:
       ME_CONFIG_MONGODB_URL: "mongodb://root:example@mongo:27017/?authSource=admin"
     ports:
       - '8081:8081'
+
+  ogn-collector:
+    build:
+      context: ./OGNFeed
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - INGEST_URL=http://backend:8000/planes/bulk
+      - INGEST_TOKEN=your-jwt-token
+      - APRS_USER=OGN-BE
+      - LAMIN=49.5
+      - LAMAX=51.5
+      - LOMIN=2.5
+      - LOMAX=6.5
+      - POLL_SECONDS=5
 
 volumes:
   mongo-data:

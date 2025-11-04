@@ -1,3 +1,5 @@
+const planeTrails = {}; // flight ID → array of LatLngs
+
 const map = L.map('map').setView([50.85, 4.35], 7);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -20,9 +22,8 @@ async function loadPlanes() {
 
     planes.forEach(p => {
       // detect whether this document is a drone report or plane telemetry
-    // Prefer the canonical `source` field; fall back to `producer` or other hints
-    const source = (p.source || p.producer || '').toString().toLowerCase();
-    const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
+      const source = (p.source || p.producer || '').toString().toLowerCase();
+      const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
       // defensive coordinate extraction
       const lat = p.lat || p.latitude || (p.position && p.position.coordinates && p.position.coordinates[1]);
@@ -54,7 +55,12 @@ async function loadPlanes() {
         const alt = p.alt || p.altitude || p.geo_alt || 0;
         const spd = p.spd || p.speed || 0;
         const heading = p.heading || p.track || 0;
-        const marker = L.marker([lat, lon], { icon }).bindPopup(`
+
+        const marker = L.marker([lat, lon], {
+          icon,
+          rotationAngle: heading - 45, // heading in degrees
+          rotationOrigin: 'center center'
+        }).bindPopup(`
           <b>Flight ${flight}</b><br>
           Country: ${p.country || ''}<br>
           Altitude: ${Math.round(alt)} m<br>
@@ -62,6 +68,26 @@ async function loadPlanes() {
           Heading: ${Math.round(heading)}°
         `);
         planeLayer.addLayer(marker);
+
+        // ✅ Trail logic must be inside this block
+        const flightId = flight || `unknown-${lat}-${lon}`;
+        if (!planeTrails[flightId]) {
+          planeTrails[flightId] = [];
+        }
+
+        planeTrails[flightId].push([lat, lon]);
+
+        if (planeTrails[flightId].length > 100) {
+          planeTrails[flightId].shift();
+        }
+
+        const trail = L.polyline(planeTrails[flightId], {
+          color: 'blue',
+          weight: 2,
+          opacity: 0.6
+        });
+
+        planeLayer.addLayer(trail);
       }
     });
 

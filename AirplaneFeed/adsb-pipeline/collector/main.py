@@ -3,15 +3,19 @@ import time
 import json
 import hashlib
 import requests
+from dotenv import load_dotenv
 
-# ---- Config from .env ----
+# Load .env if present (local development convenience)
+load_dotenv()
+
+# ---- Config from env / .env ----
 OPENSKY_URL = os.getenv("OPENSKY_URL", "https://opensky-network.org/api/states/all")
 LAMIN = float(os.getenv("LAMIN", "50.5"))
 LAMAX = float(os.getenv("LAMAX", "51.5"))
 LOMIN = float(os.getenv("LOMIN", "3.8"))
 LOMAX = float(os.getenv("LOMAX", "5.5"))
-# default poll every 30 seconds
-POLL = float(os.getenv("POLL_SECONDS", str(30)))
+# default poll every 5 seconds (accept env var as string or number)
+POLL = float(os.getenv("POLL_SECONDS", "5"))
 # Where to POST the batch (backend service in compose)
 INGEST_URL = os.getenv("INGEST_URL", "http://backend:8000/planes/bulk")
 TOKEN = os.getenv("INGEST_TOKEN", "")

@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  sensors_simulator:
+    build: .
+    container_name: sensors_simulator
+    volumes:
+      - ../sensors_output:/data/out
+      - ../sensors_images:/data/images
+    environment:
+      - NUM_DRONES=6
+      - SLEEP_SECONDS=3
+      - CAMERA_PROB=0.7
+      - LAT_MIN=50.80
+      - LAT_MAX=50.90
+      - LON_MIN=4.30
+      - LON_MAX=4.50
+    restart: unless-stopped

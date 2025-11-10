@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const planeTrails = {}; // flight ID → array of LatLngs
+  let currentTrail = null; // store the currently visible trail
 
   // --- MAP SETUP ---
   const map = L.map('map').setView([50.85, 4.35], 7);
@@ -9,70 +10,53 @@ document.addEventListener("DOMContentLoaded", () => {
   }).addTo(map);
 
   // --- LAYER GROUPS ---
-  const droneLayer = L.layerGroup();
-  const planeLayer = L.layerGroup();
-
-  // add both by default
-  droneLayer.addTo(map);
-  planeLayer.addTo(map);
+  const droneLayer = L.layerGroup().addTo(map);
+  const planeLayer = L.layerGroup().addTo(map);
 
   // --- FILTER STATE ---
   let showDrones = true;
   let showPlanes = true;
 
-  // --- FILTER LOGIC ---
   function updateLayersVisibility() {
-    if (showDrones) {
-      map.addLayer(droneLayer);
-    } else {
-      map.removeLayer(droneLayer);
-    }
-
-    if (showPlanes) {
-      map.addLayer(planeLayer);
-    } else {
-      map.removeLayer(planeLayer);
-    }
+    showDrones ? map.addLayer(droneLayer) : map.removeLayer(droneLayer);
+    showPlanes ? map.addLayer(planeLayer) : map.removeLayer(planeLayer);
   }
 
-  // attach listeners once DOM is ready
+  // --- FILTER EVENTS ---
   const toggleDrones = document.getElementById('toggle-drones');
   const togglePlanes = document.getElementById('toggle-planes');
 
-  if (toggleDrones && togglePlanes) {
-    toggleDrones.addEventListener('change', e => {
-      showDrones = e.target.checked;
-      updateLayersVisibility();
-    });
+  toggleDrones.addEventListener('change', e => {
+    showDrones = e.target.checked;
+    updateLayersVisibility();
+  });
 
-    togglePlanes.addEventListener('change', e => {
-      showPlanes = e.target.checked;
-      updateLayersVisibility();
-    });
-  }
+  togglePlanes.addEventListener('change', e => {
+    showPlanes = e.target.checked;
+    updateLayersVisibility();
+  });
 
-  // --- FETCH + RENDER LOGIC ---
+  // --- FETCH & RENDER ---
   async function loadPlanes() {
     try {
       const resp = await fetch('/api/planes');
       const data = await resp.json();
       const planes = data.planes || [];
 
-      // reset layers
+      // clear previous markers
       droneLayer.clearLayers();
       planeLayer.clearLayers();
 
       planes.forEach(p => {
-        // detect whether this document is a drone report or plane telemetry
         const source = (p.source || p.producer || '').toString().toLowerCase();
         const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
 
-        // defensive coordinate extraction
         const lat = p.lat || p.latitude || (p.position?.coordinates?.[1]);
         const lon = p.lon || p.longitude || (p.position?.coordinates?.[0]);
         if (typeof lat !== 'number' || typeof lon !== 'number') return;
 
         if (isReport) {
+          // Drone marker
           const color = getMarkerColor(p.drone_type || 'consumer');
           const radius = getMarkerRadius(p.altitude || p.alt || '0-50m (low)');
           const marker = L.circleMarker([lat, lon], {
@@ -87,67 +71,67 @@ document.addEventListener("DOMContentLoaded", () => {
             <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small>
           `);
           droneLayer.addLayer(marker);
-       } else {
-  const icon = L.icon({
-    iconUrl: 'icons/plane.png',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
-  });
-  const flight = p.flight || p.callsign || p.registration || '';
-  const alt = p.alt || p.altitude || p.geo_alt || 0;
-  const spd = p.spd || p.speed || 0;
-  const heading = p.heading || p.track || 0;
+        } else {
+          // Plane marker
+          const icon = L.icon({
+            iconUrl: 'icons/plane.png',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+          const flight = p.flight || p.callsign || p.registration || '';
+          const alt = p.alt || p.altitude || p.geo_alt || 0;
+          const spd = p.spd || p.speed || 0;
+          const heading = p.heading || p.track || 0;
 
-  const marker = L.marker([lat, lon], {
-    icon,
-    rotationAngle: heading - 45,
-    rotationOrigin: 'center center'
-  }).bindPopup(`
-    <b>Flight ${flight}</b><br>
-    Country: ${p.country || ''}<br>
-    Altitude: ${Math.round(alt)} m<br>
-    Speed: ${Math.round(spd)} km/h<br>
-    Heading: ${Math.round(heading)}°
-  `);
+          const marker = L.marker([lat, lon], {
+            icon,
+            rotationAngle: heading - 45,
+            rotationOrigin: 'center center'
+          }).bindPopup(`
+            <b>Flight ${flight}</b><br>
+            Country: ${p.country || ''}<br>
+            Altitude: ${Math.round(alt)} m<br>
+            Speed: ${Math.round(spd)} km/h<br>
+            Heading: ${Math.round(heading)}°
+          `);
+          planeLayer.addLayer(marker);
 
-  planeLayer.addLayer(marker);
+          // --- trail logic ---
+          const flightId = flight || `unknown-${lat}-${lon}`;
+          if (!planeTrails[flightId]) planeTrails[flightId] = [];
+          planeTrails[flightId].push([lat, lon]);
+          if (planeTrails[flightId].length > 100) planeTrails[flightId].shift();
 
-  // --- trail logic ---
-  const flightId = flight || `unknown-${lat}-${lon}`;
-  if (!planeTrails[flightId]) {
-    planeTrails[flightId] = [];
-  }
-  planeTrails[flightId].push([lat, lon]);
-  if (planeTrails[flightId].length > 100) {
-    planeTrails[flightId].shift();
-  }
+          if (!planeTrails[flightId].polyline) {
+            planeTrails[flightId].polyline = L.polyline(planeTrails[flightId], {
+              color: 'blue',
+              weight: 2,
+              opacity: 0.6
+            });
+          } else {
+            planeTrails[flightId].polyline.setLatLngs(planeTrails[flightId]);
+          }
 
-  // store polyline but don’t show it yet
-  if (!planeTrails[flightId].polyline) {
-    planeTrails[flightId].polyline = L.polyline(planeTrails[flightId], {
-      color: 'blue',
-      weight: 2,
-      opacity: 0.6
-    });
-  } else {
-    planeTrails[flightId].polyline.setLatLngs(planeTrails[flightId]);
-  }
+          marker.on('click', () => {
+            const trail = planeTrails[flightId].polyline;
+            if (!trail) return;
 
-  // toggle trail on click
-  marker.on('click', () => {
-    const trail = planeTrails[flightId].polyline;
-    if (!trail) return;
+            // Hide previous trail if any
+            if (currentTrail && currentTrail !== trail) {
+              map.removeLayer(currentTrail);
+            }
 
-    if (map.hasLayer(trail)) {
-      map.removeLayer(trail);
-    } else {
-      trail.addTo(map);
-    }
-  });
-} // <-- closes else
-
-
-
+            // Toggle current trail
+            if (map.hasLayer(trail)) {
+              map.removeLayer(trail);
+              currentTrail = null;
+            } else {
+              trail.addTo(map);
+              currentTrail = trail;
+            }
+          });
+        }
+      });
     } catch (err) {
       console.error('Error loading planes:', err);
     }
@@ -186,6 +170,5 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(updateLoop, 5000);
   }
 
-  updateLoop(); // Start it!
+  updateLoop(); // Start loop
 });
-

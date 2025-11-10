@@ -120,15 +120,29 @@ document.addEventListener("DOMContentLoaded", () => {
           if (planeTrails[flightId].length > 100) {
             planeTrails[flightId].shift();
           }
-
-          const trail = L.polyline(planeTrails[flightId], {
-            color: 'blue',
-            weight: 2,
-            opacity: 0.6
-          });
-          planeLayer.addLayer(trail);
-        }
+// store trail but don’t show it yet
+        if (!planeTrails[flightId].polyline) {
+        planeTrails[flightId].polyline = L.polyline(planeTrails[flightId], {
+        color: 'blue',
+        weight: 2,
+        opacity: 0.6
       });
+    } else {
+      planeTrails[flightId].polyline.setLatLngs(planeTrails[flightId]);
+}
+
+      marker.on('click', () => {
+      const trail = planeTrails[flightId].polyline;
+      if (!trail) return;
+
+      // toggle trail visibility
+      if (map.hasLayer(trail)) {
+        map.removeLayer(trail);
+      } else {
+        trail.addTo(map);
+  }
+});
+
 
     } catch (err) {
       console.error('Error loading planes:', err);

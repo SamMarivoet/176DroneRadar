@@ -6,8 +6,42 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-let droneLayer = L.layerGroup().addTo(map);
-let planeLayer = L.layerGroup().addTo(map);
+// define layer groups but don't add immediately (we’ll control visibility later)
+const droneLayer = L.layerGroup();
+const planeLayer = L.layerGroup();
+
+// add both by default
+droneLayer.addTo(map);
+planeLayer.addTo(map);
+// Default: both visible
+let showDrones = true;
+let showPlanes = true;
+
+// Set up listeners for filter checkboxes
+document.getElementById('toggle-drones').addEventListener('change', e => {
+  showDrones = e.target.checked;
+  updateLayersVisibility();
+});
+
+document.getElementById('toggle-planes').addEventListener('change', e => {
+  showPlanes = e.target.checked;
+  updateLayersVisibility();
+});
+
+function updateLayersVisibility() {
+  if (showDrones) {
+    map.addLayer(droneLayer);
+  } else {
+    map.removeLayer(droneLayer);
+  }
+
+  if (showPlanes) {
+    map.addLayer(planeLayer);
+  } else {
+    map.removeLayer(planeLayer);
+  }
+}
+
 
 // Single loader: fetch /api/planes and split entries into drone reports vs planes
 async function loadPlanes() {

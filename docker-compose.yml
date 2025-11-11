@@ -53,6 +53,24 @@ services:
     environment:
       - API_URL=http://backend:8000
 
+  sensors:
+    build: ./Sensors/sensors_simulator
+    container_name: sensors
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - OUTPUT_DIR=/data/out
+      - IMAGE_POOL_DIR=/data/image_pool
+      - CAMERA_IMAGE_PROB=0.4
+      - SLEEP_SECONDS=2
+      - WRITE_LOCAL_JSON=true
+    volumes:
+      - sensor-data:/data/out
+      - ./Sensors/sensors_simulator/image_pool:/data/image_pool:ro
+    depends_on:
+      - backend
+
+
+
   # ingest helper: runs ingest script in DroneRadarBackend/ingest (runs once)
   ingest:
     build:
@@ -107,3 +125,5 @@ services:
 
 volumes:
   mongo-data:
+  sensor-data:
+

@@ -53,5 +53,23 @@
         'Last update: ' + new Date().toLocaleTimeString();
     });
   </script>
+
+  <div id="filters" style="
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+">
+
+  <label><input type="checkbox" id="toggle-drones" checked> Drones</label><br>
+  <label><input type="checkbox" id="toggle-planes" checked> Planes</label>
+</div>
+
+<div id="map" style="width:100%; height:100vh;"></div>
+
 </body>
 </html>

@@ -1,0 +1,11 @@
+# docker-compose.yml
+services:
+  ogn-collector:
+    build: .
+    environment:
+      - INGEST_URL=http://localhost:8000/planes/bulk
+      - INGEST_TOKEN=your-jwt-token
+      - APRS_USER=OGN-BE
+    depends_on:
+      - backend
+    networks: [ avionet ]

@@ -1,7 +1,7 @@
 from . import database
 from .schemas import PlaneIn
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 async def upsert_plane(plane: PlaneIn):
@@ -31,7 +31,8 @@ async def upsert_plane(plane: PlaneIn):
     canonical_icao = getattr(plane, 'icao', None) or getattr(plane, 'icao24', None)
     if canonical_icao is None:
         # No icao present: treat this as a standalone report (insert new doc)
-        new_doc = {**doc, 'created_at': datetime.utcnow(), 'position_history': [], 'missed_updates': 0}
+        now = datetime.utcnow()
+        new_doc = {**doc, 'created_at': now, 'last_seen': now, 'position_history': [], 'missed_updates': 0}
         res = await database.db.planes.insert_one(new_doc)
         return res
 
@@ -164,3 +165,62 @@ async def query_planes_bbox(min_lat, min_lon, max_lat, max_lon, limit=100):
 
 async def delete_plane(icao: str):
     return await database.db.planes.delete_one({'icao': icao})
+
+
+async def archive_old_drone_reports(age_hours: float = 1.0):
+    """Move drone reports older than the specified age to the archive collection.
+    
+    Args:
+        age_hours: Age threshold in hours (default 1.0)
+        
+    Returns:
+        Dictionary with counts of archived and deleted documents
+    """
+    cutoff_time = datetime.utcnow() - timedelta(hours=age_hours)
+    
+    # Find drone reports older than the cutoff time
+    # Check for documents with source='dronereport' OR documents with drone report characteristics
+    # (drone_description, notes, etc.) that might not have the source field set
+    # Use $or to check both last_seen and created_at (for older reports that might not have last_seen)
+    cursor = database.db.planes.find({
+        '$and': [
+            {
+                '$or': [
+                    {'source': 'dronereport'},
+                    # Legacy reports without source field but with drone report characteristics
+                    {'drone_description': {'$exists': True}},
+                    {'notes': {'$exists': True}},
+                    # Reports without ICAO (drone reports don't have ICAO)
+                    {'$and': [
+                        {'icao': {'$exists': False}},
+                        {'icao24': {'$exists': False}}
+                    ]}
+                ]
+            },
+            {
+                '$or': [
+                    {'last_seen': {'$lt': cutoff_time}},
+                    {'last_seen': {'$exists': False}, 'created_at': {'$lt': cutoff_time}}
+                ]
+            }
+        ]
+    })
+    
+    archived_count = 0
+    deleted_count = 0
+    
+    async for doc in cursor:
+        # Add archiving metadata
+        doc['archived_at'] = datetime.utcnow()
+        doc['original_last_seen'] = doc.get('last_seen')
+        
+        # Insert into archive collection
+        await database.db.archive.insert_one(doc)
+        archived_count += 1
+        
+        # Delete from planes collection
+        # Use _id for reliable deletion since we already have the doc
+        await database.db.planes.delete_one({'_id': doc['_id']})
+        deleted_count += 1
+    
+    return {'archived': archived_count, 'deleted': deleted_count}

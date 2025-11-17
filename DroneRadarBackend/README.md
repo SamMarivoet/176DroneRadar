@@ -52,12 +52,15 @@ pip install -r DroneRadarBackend\backend\requirements.txt
 uvicorn DroneRadarBackend.backend.app.main:app --reload --port 8000
 ```
 
+
 Key endpoints
 -------------
 - `POST /planes/bulk` — accepts a list of plane objects (JSON) and upserts them.
 - `GET /planes` — query planes; supports `lat` + `lon` + `radius` (metres) or `bbox`.
 - `GET /planes/{icao}` — get single plane by ICAO.
 - `GET /health` — health check.
+- `GET /archive` — query archived drone reports (see below).
+- `POST /archive/manual` — manually trigger archiving of old drone reports.
 
 Requirements
 ------------
@@ -114,21 +117,41 @@ Testing notes
 -------------
 There are no automated tests included in this repository's backend component. For manual/smoke testing use the sample payloads in `DroneRadarBackend/sample_json/` and POST them to `POST /planes/bulk`, then verify results using the API (`GET /planes/{icao}`) or via `mongo-express`.
 
+
 Stale plane cleanup policy
---------------------------
+-------------------------
 The backend maintains a small housekeeping field on plane documents named `missed_updates`. This field tracks consecutive polls where an OpenSky-sourced plane was missing from the collector's snapshot.
 
 - New or updated plane documents get `missed_updates = 0` and a `last_seen` timestamp (derived from `ts_unix` when present).
 - When the backend receives a batch snapshot it:
-	- upserts incoming planes (resetting `missed_updates`),
-	- deletes incoming planes that report `on_ground: true` (if they include an `icao`), and
-	- increments `missed_updates` by 1 for existing OpenSky-sourced planes that were not present in the snapshot.
+    - upserts incoming planes (resetting `missed_updates`),
+    - deletes incoming planes that report `on_ground: true` (if they include an `icao`), and
+    - increments `missed_updates` by 1 for existing OpenSky-sourced planes that were not present in the snapshot.
 - Any OpenSky-sourced plane whose `missed_updates` reaches `2` is removed from the database.
 
-Notes and alternatives
-----------------------
-- The `missed_updates` field is created automatically when updates are applied; MongoDB will create the field when incrementing a missing value.
-- This consecutive-miss policy is simple and works well when a single collector posts full snapshots. If you have multiple independent collectors posting partial snapshots, consider switching to a time-based deletion policy (delete when `last_seen` is older than a configurable threshold) or run a periodic cleanup job. I can implement those changes on request.
+Automatic archiving of drone reports
+------------------------------------
+Drone reports (form submissions, i.e. documents with `source: 'dronereport'` or typical drone report fields) are automatically moved from the active `planes` collection to a separate `archive` collection after 1 hour.
+
+- The backend runs a background task every 5 minutes to archive drone reports older than 1 hour.
+- Archiving is based on the `last_seen` field if present, or `created_at` for legacy reports.
+- The archiving logic is robust to older reports that may not have a `source` field or `last_seen`.
+- Archived reports are removed from the active `planes` collection and inserted into the `archive` collection with metadata (`archived_at`, `original_last_seen`).
+
+Manual archiving
+----------------
+You can manually trigger the archiving process by POSTing to `/archive/manual`.
+
+Querying archived reports
+------------------------
+- `GET /archive` returns archived drone reports, optionally filtered by location (`lat`, `lon`, `radius`).
+- By default, returns the most recently archived reports.
+
+Notes:
+- Only drone reports are archived; OpenSky/ADS-B planes are not affected.
+- The archiving process is automatic and requires no manual intervention for normal operation.
+
+If you have legacy drone reports that are not being archived, ensure they have either a `created_at` or `last_seen` field and at least one of the typical drone report fields (`drone_description`, `notes`, etc.).
 
 Security note
 -------------

@@ -39,6 +39,13 @@ async def init_db(retries: int = 20, delay: float = 0.5):
     await db.planes.create_index([('position', '2dsphere')])
     # Index last_seen to help with pruning and queries
     await db.planes.create_index('last_seen')
+    # Index source and last_seen for efficient archiving queries
+    await db.planes.create_index([('source', 1), ('last_seen', 1)])
+
+    # Ensure indexes for archive collection
+    await db.archive.create_index([('position', '2dsphere')])
+    await db.archive.create_index('archived_at')
+    await db.archive.create_index('original_last_seen')
 
     # create a GridFS bucket for storing uploaded images
     global gridfs_bucket

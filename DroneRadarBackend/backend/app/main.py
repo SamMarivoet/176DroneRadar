@@ -7,18 +7,53 @@ from pydantic import parse_obj_as
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
 import io
+import asyncio
+import logging
 
+logger = logging.getLogger('backend.main')
 
 app = FastAPI(title='Planes backend')
 
 
+# Global reference to background task
+archive_task = None
+
+
+async def archive_drone_reports_periodically():
+	"""Background task that archives old drone reports every 5 minutes."""
+	while True:
+		try:
+			await asyncio.sleep(300)  # Run every 5 minutes
+			result = await crud.archive_old_drone_reports(age_hours=1.0)
+			if result['archived'] > 0:
+				logger.info(f"Archived {result['archived']} drone reports")
+		except asyncio.CancelledError:
+			logger.info("Archive task cancelled")
+			break
+		except Exception as e:
+			logger.error(f"Error in archive task: {e}", exc_info=True)
+			# Continue running despite errors
+
+
 @app.on_event('startup')
 async def startup_event():
+	global archive_task
 	await database.init_db()
+	# Start the background archiving task
+	archive_task = asyncio.create_task(archive_drone_reports_periodically())
+	logger.info("Started background archive task")
 
 
 @app.on_event('shutdown')
 async def shutdown_event():
+	global archive_task
+	# Cancel the background task
+	if archive_task:
+		archive_task.cancel()
+		try:
+			await archive_task
+		except asyncio.CancelledError:
+			pass
 	await database.close_db()
 
 
@@ -126,3 +161,34 @@ async def get_image(image_id: str):
 		raise
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get('/archive')
+async def get_archived_reports(
+	lat: Optional[float] = Query(None),
+	lon: Optional[float] = Query(None),
+	radius: Optional[int] = Query(5000),
+	limit: Optional[int] = Query(100),
+):
+	"""Retrieve archived drone reports, optionally filtered by location."""
+	if lat is not None and lon is not None:
+		cursor = database.db.archive.find({
+			'position': {
+				'$nearSphere': {
+					'$geometry': {'type': 'Point', 'coordinates': [lon, lat]},
+					'$maxDistance': radius
+				}
+			}
+		}, projection={'_id': False}).limit(limit)
+	else:
+		# Return most recently archived reports
+		cursor = database.db.archive.find({}, projection={'_id': False}).sort('archived_at', -1).limit(limit)
+	
+	return await cursor.to_list(length=limit)
+
+
+@app.post('/archive/manual')
+async def trigger_manual_archive():
+	"""Manually trigger archiving of old drone reports."""
+	result = await crud.archive_old_drone_reports(age_hours=1.0)
+	return result

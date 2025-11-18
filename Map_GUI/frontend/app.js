@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <b>Flight ${flight}</b><br>
             Country: ${p.country || ''}<br>
             Altitude: ${Math.round(alt)} m<br>
-            Speed: ${Math.round(spd)} km/h<br>
+            Speed: ${Math.round(spd*3.6)} km/h<br>
             Heading: ${Math.round(heading)}°
           `);
           planeLayer.addLayer(marker);

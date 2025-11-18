@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, Fo
 from typing import List, Optional
 from . import schemas, crud, database
 from .config import settings
-from .auth import verify_airplanefeed, verify_operator
+from .auth import verify_airplanefeed, verify_operator, verify_admin
 from fastapi.responses import JSONResponse
-from pydantic import parse_obj_as
+from pydantic import parse_obj_as, BaseModel
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -24,6 +24,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Global reference to background task
 archive_task = None
+
+# Pydantic model for password update
+class PasswordUpdate(BaseModel):
+    username: str
+    new_password: str
+
 
 
 async def archive_drone_reports_periodically():
@@ -67,6 +73,32 @@ async def shutdown_event():
 @app.get('/health')
 async def health():
 	return {'status': 'ok'}
+
+@app.post('/admin/settings/passwords')
+async def update_passwords(
+    password_update: PasswordUpdate,
+    admin_username: str = Depends(verify_admin)
+):
+    """Update a user's password. Admin only. Changes persist in database."""
+    
+    
+    # Validate username exists
+    if password_update.username not in ["admin", "airplanefeed", "operator"]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password in database
+    success = await database.update_user_password(password_update.username, password_update.new_password)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password")
+    
+    logger.info(f"Admin {admin_username} updated password for user: {password_update.username}")
+    
+    return {
+        "status": "ok",
+        "username": password_update.username,
+        "message": f"Password updated successfully for {password_update.username}"
+    }
 
 @app.post('/planes/single')
 @limiter.limit("10/hour")  # 10 requests per hour per IP

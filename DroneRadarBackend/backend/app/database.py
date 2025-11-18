@@ -2,6 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from .config import settings
 import asyncio
 import logging
+import bcrypt
 
 logger = logging.getLogger('backend.database')
 
@@ -16,11 +17,11 @@ async def init_db(retries: int = 20, delay: float = 0.5):
     This function will retry connecting to Mongo for a short period to
     tolerate container startup ordering when running under Docker Compose.
     """
-    global client, db
+    global client, db, gridfs_bucket
     client = AsyncIOMotorClient(settings.MONGO_URI)
     db = client[settings.MONGO_DB]
 
-    # Wait for the server to accept commands (ping)
+    # Wait for connection
     for attempt in range(1, retries + 1):
         try:
             await client.admin.command('ping')
@@ -47,103 +48,62 @@ async def init_db(retries: int = 20, delay: float = 0.5):
     await db.archive.create_index('archived_at')
     await db.archive.create_index('original_last_seen')
 
-    # create a GridFS bucket for storing uploaded images
-    global gridfs_bucket
+    # Ensure unique index on username in users collection
+    await db.users.create_index('username', unique=True)
+
+    # Initialize GridFS
     gridfs_bucket = AsyncIOMotorGridFSBucket(db)
 
-    # Initialize database users with roles (Possible implementation, now our API endpoints are protected using hardcoded users (much simpler), but if multiple users are needed with specific roles this would be an implementation)
-#     await init_db_users()
+    # Initialize default users if they don't exist
+    await init_default_users()
 
 
-# async def init_db_users():
-#     """Create database users with appropriate roles if they don't exist."""
-#     db_name = settings.MONGO_DB
-    
-#     try:
-#         # Check if we have permission to create users (requires admin rights)
-#         await client.admin.command('ping')
-        
-#         # Define custom roles for fine-grained permissions
-#         roles_to_create = [
-#             {
-#                 'role': 'airplanefeedRole',
-#                 'privileges': [
-#                     {
-#                         'resource': {'db': db_name, 'collection': 'planes'},
-#                         'actions': ['find', 'insert', 'update', 'remove']
-#                     }
-#                 ],
-#                 'roles': []
-#             },
-#             {
-#                 'role': 'operatorRole',
-#                 'privileges': [
-#                     {
-#                         'resource': {'db': db_name, 'collection': 'planes'},
-#                         'actions': ['find', 'remove']
-#                     },
-#                     {
-#                         'resource': {'db': db_name, 'collection': 'archive'},
-#                         'actions': ['find']
-#                     }
-#                 ],
-#                 'roles': []
-#             },
-#             {
-#                 'role': 'publicRole',
-#                 'privileges': [
-#                     {
-#                         'resource': {'db': db_name, 'collection': 'planes'},
-#                         'actions': ['find', 'insert']  # read planes, insert single drone sightings
-#                     }
-#                 ],
-#                 'roles': []
-#             }
-#         ]
-        
-#         # Create custom roles
-#         for role_def in roles_to_create:
-#             try:
-#                 await db.command('createRole', role_def['role'], 
-#                                 privileges=role_def['privileges'],
-#                                 roles=role_def['roles'])
-#                 logger.info(f"Created role: {role_def['role']}")
-#             except Exception as e:
-#                 if 'already exists' in str(e):
-#                     logger.debug(f"Role {role_def['role']} already exists")
-#                 else:
-#                     logger.warning(f"Could not create role {role_def['role']}: {e}")
-        
-#         # Define users with their roles
-#         users_to_create = [
-#             {
-#                 'user': 'airplanefeed',
-#                 'pwd': settings.AIRPLANEFEED_PASSWORD,  # Add to config
-#                 'roles': [{'role': 'airplanefeedRole', 'db': db_name}]
-#             },
-#             {
-#                 'user': 'operator',
-#                 'pwd': settings.OPERATOR_PASSWORD,  # Add to config
-#                 'roles': [{'role': 'operatorRole', 'db': db_name}]
-#             }
-#         ]
-        
-#         # Create users
-#         for user_def in users_to_create:
-#             try:
-#                 await db.command('createUser', user_def['user'],
-#                                 pwd=user_def['pwd'],
-#                                 roles=user_def['roles'])
-#                 logger.info(f"Created user: {user_def['user']}")
-#             except Exception as e:
-#                 if 'already exists' in str(e):
-#                     logger.debug(f"User {user_def['user']} already exists")
-#                 else:
-#                     logger.warning(f"Could not create user {user_def['user']}: {e}")
-                    
-#     except Exception as e:
-#         logger.warning(f"Could not initialize database users (may require admin privileges): {e}")
-#         logger.info("Skipping user creation - ensure users are created manually if needed")
+async def init_default_users():
+    """Create default users with passwords from config if they don't exist."""
+    default_users = [
+        {
+            'username': 'admin',
+            'password': settings.ADMIN_PASSWORD,
+            'role': 'admin'
+        },
+        {
+            'username': 'airplanefeed',
+            'password': settings.AIRPLANEFEED_PASSWORD,
+            'role': 'airplanefeed'
+        },
+        {
+            'username': 'operator',
+            'password': settings.OPERATOR_PASSWORD,
+            'role': 'operator'
+        }
+    ]
+
+    for user_data in default_users:
+        existing = await db.users.find_one({'username': user_data['username']})
+        if not existing:
+            # Hash password before storing
+            hashed_password = bcrypt.hashpw(user_data['password'].encode('utf-8'), bcrypt.gensalt())
+            await db.users.insert_one({
+                'username': user_data['username'],
+                'password_hash': hashed_password,
+                'role': user_data['role']
+            })
+            logger.info(f"Created default user: {user_data['username']}")
+
+
+async def get_user(username: str):
+    """Get user from database."""
+    return await db.users.find_one({'username': username})
+
+
+async def update_user_password(username: str, new_password: str):
+    """Update user password in database."""
+    hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+    result = await db.users.update_one(
+        {'username': username},
+        {'$set': {'password_hash': hashed_password}}
+    )
+    return result.modified_count > 0
 
 
 async def close_db():

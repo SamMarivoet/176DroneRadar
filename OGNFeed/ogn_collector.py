@@ -139,6 +139,8 @@ def periodic_post():
                 print(f"[collector] SAVED failed batch -> {fname}")
 
         print(f"[collector] Processed {len(batch)} OGN gliders in Belgium", flush=True)
+        gliders_in_belgium.clear()
+
         time.sleep(POLL)
 
 # === Start APRS Client ===

@@ -5,6 +5,7 @@ import json
 import random
 from pathlib import Path
 import requests
+from requests.auth import HTTPBasicAuth
 from datetime import datetime, timezone
 
 # ====== CONFIG ======
@@ -18,6 +19,10 @@ CAMERA_IMAGE_PROB = float(os.getenv("CAMERA_IMAGE_PROB", "0.4"))  # 40% chance
 WRITE_LOCAL_JSON = os.getenv("WRITE_LOCAL_JSON", "true").lower() == "true"
 
 SLEEP_SECONDS = float(os.getenv("SLEEP_SECONDS", "2.0"))
+
+# Authentication credentials
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "airplanefeed")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "pass")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -100,7 +105,9 @@ def generate_fake_sensor() -> dict:
 
 def main():
     pool = list_pool_images()
-    print(f"image pool: {len(pool)} files found in {IMAGE_POOL_DIR}")
+    print(f"[generator] Image pool: {len(pool)} files found in {IMAGE_POOL_DIR}")
+    print(f"[generator] Authenticating as: {AUTH_USERNAME}")
+    print(f"[generator] Backend URL: {BACKEND_URL}")
 
     while True:
         sensor_doc = generate_fake_sensor()
@@ -111,18 +118,23 @@ def main():
             chosen = random.choice(pool)
             try:
                 image_id = upload_image_to_backend(chosen)
-                print(f"uploaded image {chosen.name} → image_id={image_id}")
+                print(f"[generator] Uploaded image {chosen.name} → image_id={image_id}")
             except Exception as e:
-                print(f"failed to upload image {chosen}: {e}")
+                print(f"[generator] Failed to upload image {chosen}: {e}")
 
         # now convert to plane doc and upload to /planes/bulk
         plane_doc = sensor_doc_to_plane(sensor_doc, image_id=image_id)
         try:
-            resp = requests.post(PLANES_BULK_URL, json=[plane_doc], timeout=10)
+            resp = requests.post(
+                PLANES_BULK_URL, 
+                json=[plane_doc], 
+                auth=HTTPBasicAuth(AUTH_USERNAME, AUTH_PASSWORD),
+                timeout=10
+            )
             resp.raise_for_status()
-            print(f"sent plane {plane_doc['icao']} (src={plane_doc['source']}) img={image_id}")
+            print(f"[generator] Sent plane {plane_doc['icao']} (src={plane_doc['source']}) img={image_id}")
         except Exception as e:
-            print(f"failed to send plane to backend: {e}")
+            print(f"[generator] Failed to send plane to backend: {e}")
 
         # optional: keep a local copy for debugging
         if WRITE_LOCAL_JSON:

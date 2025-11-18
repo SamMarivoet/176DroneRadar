@@ -1,18 +1,25 @@
-from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, Form, Request
 from typing import List, Optional
 from . import schemas, crud, database
 from .config import settings
+from .auth import verify_airplanefeed, verify_operator
 from fastapi.responses import JSONResponse
 from pydantic import parse_obj_as
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
-import io
-import asyncio
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import logging
+import asyncio
 
 logger = logging.getLogger('backend.main')
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title='Planes backend')
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Global reference to background task
@@ -61,15 +68,36 @@ async def shutdown_event():
 async def health():
 	return {'status': 'ok'}
 
+@app.post('/planes/single')
+@limiter.limit("10/hour")  # 10 requests per hour per IP
+async def post_single_plane(request: Request, payload: dict):  # ADD request: Request here
+    """Post a single plane/drone sighting. Public endpoint - rate limited."""
+    try:
+        plane = schemas.PlaneIn(**payload)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f'Invalid payload: {e}')
+    
+    result = await crud.upsert_plane(plane)
+    
+    return JSONResponse({
+        'status': 'ok',
+        'icao': plane.icao or plane.icao24,
+        'upserted': result.upserted_id is not None,
+        'modified': result.modified_count > 0
+    })
+
 
 @app.post('/planes/bulk')
-async def post_planes_bulk(payload: List[dict]):
-	try:
-		planes = [schemas.PlaneIn(**p) for p in payload]
-	except Exception as e:
-		raise HTTPException(status_code=400, detail=f'Invalid payload: {e}')
-	await crud.upsert_planes_bulk(planes)
-	return JSONResponse({'ingested': len(planes)})
+async def post_planes_bulk(
+    payload: List[dict],
+    username: str = Depends(verify_airplanefeed)  # Only airplanefeed can access
+):
+    try:
+        planes = [schemas.PlaneIn(**p) for p in payload]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f'Invalid payload: {e}')
+    await crud.upsert_planes_bulk(planes)
+    return JSONResponse({'ingested': len(planes)})
 
 
 @app.get('/planes/{icao}', response_model=schemas.PlaneOut)
@@ -106,11 +134,14 @@ async def get_planes(
 
 
 @app.delete('/planes/{icao}')
-async def delete_plane(icao: str):
-	res = await crud.delete_plane(icao)
-	if res.deleted_count == 0:
-		raise HTTPException(status_code=404, detail='Not found')
-	return {'deleted': 1}
+async def delete_plane(
+    icao: str,
+    username: str = Depends(verify_operator)  # Only operator can delete
+):
+    res = await crud.delete_plane(icao)
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail='Not found')
+    return {'deleted': 1}
 
 
 @app.post('/images')
@@ -165,26 +196,27 @@ async def get_image(image_id: str):
 
 @app.get('/archive')
 async def get_archived_reports(
-	lat: Optional[float] = Query(None),
-	lon: Optional[float] = Query(None),
-	radius: Optional[int] = Query(5000),
-	limit: Optional[int] = Query(100),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    radius: Optional[int] = Query(5000),
+    limit: Optional[int] = Query(100),
+    username: str = Depends(verify_operator)  # Only operator can view archive
 ):
-	"""Retrieve archived drone reports, optionally filtered by location."""
-	if lat is not None and lon is not None:
-		cursor = database.db.archive.find({
-			'position': {
-				'$nearSphere': {
-					'$geometry': {'type': 'Point', 'coordinates': [lon, lat]},
-					'$maxDistance': radius
-				}
-			}
-		}, projection={'_id': False}).limit(limit)
-	else:
-		# Return most recently archived reports
-		cursor = database.db.archive.find({}, projection={'_id': False}).sort('archived_at', -1).limit(limit)
-	
-	return await cursor.to_list(length=limit)
+    """Retrieve archived drone reports, optionally filtered by location."""
+    if lat is not None and lon is not None:
+        cursor = database.db.archive.find({
+            'position': {
+                '$nearSphere': {
+                    '$geometry': {'type': 'Point', 'coordinates': [lon, lat]},
+                    '$maxDistance': radius
+                }
+            }
+        }, projection={'_id': False}).limit(limit)
+    else:
+        # Return most recently archived reports
+        cursor = database.db.archive.find({}, projection={'_id': False}).sort('archived_at', -1).limit(limit)
+    
+    return await cursor.to_list(length=limit)
 
 
 @app.post('/archive/manual')

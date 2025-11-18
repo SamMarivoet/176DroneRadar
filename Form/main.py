@@ -115,10 +115,10 @@ def submit_report():
         # Attempt to POST the report to the backend ingestion endpoint so form reports
         # are stored centrally. Use API_URL environment variable if present.
         API_URL = os.getenv('API_URL', 'http://backend:8000')
-        ingest_url = f"{API_URL.rstrip('/')}/planes/bulk"
+        ingest_url = f"{API_URL.rstrip('/')}/planes/single"
 
         try:
-            resp = requests.post(ingest_url, json=[report], timeout=10)
+            resp = requests.post(ingest_url, json=report, timeout=10)
             if resp.status_code in (200, 201):
                 return jsonify({"status": "ok", "ingested": True, "backend_response": resp.json()}), 200
             else:

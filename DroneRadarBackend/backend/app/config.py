@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     MONGO_DB: str = 'planesdb'
     PORT: int = 8000
 
+    # User credentials
+    ADMIN_PASSWORD: str = "pass"
+    AIRPLANEFEED_PASSWORD: str = "pass"
+    OPERATOR_PASSWORD: str = "pass"
+    
+
     class Config:
         env_file = '.env'
 

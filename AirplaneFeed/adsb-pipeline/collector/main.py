@@ -3,6 +3,7 @@ import time
 import json
 import hashlib
 import requests
+from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 
 # Load .env if present (local development convenience)
@@ -18,7 +19,10 @@ LOMAX = float(os.getenv("LOMAX", "5.5"))
 POLL = float(os.getenv("POLL_SECONDS", "5"))
 # Where to POST the batch (backend service in compose)
 INGEST_URL = os.getenv("INGEST_URL", "http://backend:8000/planes/bulk")
-TOKEN = os.getenv("INGEST_TOKEN", "")
+
+# Authentication credentials
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "airplanefeed")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "pass")
 
 
 def msg_id(icao: str, ts_aircraft: int) -> str:
@@ -37,11 +41,15 @@ def fetch_opensky() -> dict:
 
 def post_batch(batch):
     headers = {"Content-Type": "application/json"}
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
-
+    
     try:
-        resp = requests.post(INGEST_URL, json=batch, headers=headers, timeout=30)
+        resp = requests.post(
+            INGEST_URL, 
+            json=batch, 
+            headers=headers, 
+            auth=HTTPBasicAuth(AUTH_USERNAME, AUTH_PASSWORD),
+            timeout=30
+        )
         resp.raise_for_status()
         print(f"[collector] posted {len(batch)} records -> {INGEST_URL}")
         return True
@@ -52,6 +60,7 @@ def post_batch(batch):
 
 def main():
     print(f"[collector] OpenSky bbox (lat {LAMIN}..{LAMAX}, lon {LOMIN}..{LOMAX}); poll={POLL}s")
+    print(f"[collector] Authenticating as: {AUTH_USERNAME}")
     while True:
         try:
             data = fetch_opensky()

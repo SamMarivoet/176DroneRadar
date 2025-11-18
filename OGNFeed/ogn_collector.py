@@ -3,6 +3,7 @@ import time
 import json
 import hashlib
 import requests
+from requests.auth import HTTPBasicAuth
 import datetime
 import threading
 from ogn.client import AprsClient
@@ -15,8 +16,11 @@ LOMIN = float(os.getenv("LOMIN", "2.5"))
 LOMAX = float(os.getenv("LOMAX", "6.5"))
 POLL = float(os.getenv("POLL_SECONDS", str(5)))  # 5 seconds
 INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8000/planes/bulk")
-TOKEN = os.getenv("INGEST_TOKEN", "")
 APRS_USER = os.getenv("APRS_USER", "N0CALL-BE")
+
+# Authentication credentials
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "airplanefeed")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "pass")
 
 # In-memory store: {address: latest beacon data}
 gliders_in_belgium = {}
@@ -78,7 +82,7 @@ def process_beacon(raw_message):
             'ground_speed_knots': beacon.get('ground_speed'),
             'climb_rate_fpm': beacon.get('climb_rate'),
             'on_ground': beacon.get('on_ground', False),
-            'aircraft_type': get_aircraft_type(beacon.get('aircraft_type', 0)),  # <-- NEW: Map to string
+            'aircraft_type': get_aircraft_type(beacon.get('aircraft_type', 0)),
         }
 
     except (AprsParseError, KeyError, ValueError, TypeError):
@@ -86,10 +90,14 @@ def process_beacon(raw_message):
 
 def post_batch(batch):
     headers = {"Content-Type": "application/json"}
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
     try:
-        resp = requests.post(INGEST_URL, json=batch, headers=headers, timeout=30)
+        resp = requests.post(
+            INGEST_URL, 
+            json=batch, 
+            headers=headers,
+            auth=HTTPBasicAuth(AUTH_USERNAME, AUTH_PASSWORD),
+            timeout=30
+        )
         resp.raise_for_status()
         print(f"[collector] POSTED {len(batch)} OGN records -> {INGEST_URL}")
         return True
@@ -116,11 +124,11 @@ def periodic_post():
                 "ts_unix": ts_unix,
                 # labeling
                 "flight": data['name'].strip() if data['name'] else None,
-                "country": "OGN: " + data['aircraft_type'],  # <-- NEW: Use aircraft type as "country" field
+                "country": "OGN: " + data['aircraft_type'],
                 # position & motion
                 "lat": data['latitude'],
                 "lon": data['longitude'],
-                "alt": round(data['altitude_m'], 1),           # barometric altitude not in OGN
+                "alt": round(data['altitude_m'], 1),
                 "alt_geom": round(data['altitude_m'], 1),  # meters, rounded
                 "spd": round(spd_ms, 2) if spd_ms is not None else None,
                 "heading": data['track'],
@@ -152,6 +160,7 @@ poster = threading.Thread(target=periodic_post, daemon=True)
 poster.start()
 
 print(f"[collector] OGN Belgium tracker STARTED")
+print(f"   Authenticating as: {AUTH_USERNAME}")
 print(f"   BBox: lat {LAMIN}–{LAMAX}, lon {LOMIN}–{LOMAX}")
 print(f"   Push every {POLL}s to {INGEST_URL}")
 print("   Waiting for beacons... (Ctrl+C to stop)\n")

@@ -1,43 +1,183 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Drone Activity Report</title>
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <style>
-    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;}
-    body{margin:0;padding:20px;background:#f7fafc;color:#0f172a}
-    header{max-width:900px;margin:0 auto 18px}
-    .card{background:white;border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(12,18,30,0.06);max-width:900px;margin:0 auto}
-    label{display:block;margin-top:12px;font-weight:600}
-    input[type="text"], input[type="datetime-local"], textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #e2e8f0;transition:all 0.2s}
-    #map{height:360px;border-radius:8px;margin-top:12px}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    button{padding:8px 12px;border-radius:8px;border:0;background:#111827;color:white;cursor:pointer}
-    .secondary{background:#e5e7eb;color:#111827}
-    .muted{color:#64748b;font-size:13px;margin-top:6px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .full{grid-column:1/-1}
-    .preview{max-width:160px;max-height:120px;border-radius:6px;margin-top:8px;object-fit:cover;border:1px solid #cbd5e1}
-    .error{color:#b91c1c;font-weight:700;margin-top:8px}
-    .field-error{border-color:#b91c1c !important;background-color:#fef2f2 !important}
-    .field-error:focus{outline-color:#b91c1c !important;box-shadow:0 0 0 3px rgba(185,28,28,0.1)}
-    .error-message{color:#b91c1c;font-size:13px;margin-top:4px;display:none}
-  .suggestions{position:relative}
-  .suggestions-list{position:absolute;z-index:1200;left:0;right:0;background:white;border:1px solid #e2e8f0;border-radius:6px;max-height:220px;overflow:auto;box-shadow:0 6px 18px rgba(12,18,30,0.06);margin-top:6px}
-  .suggestion-item{padding:8px 10px;cursor:pointer;border-bottom:1px solid rgba(15,23,42,0.03)}
-  .suggestion-item:last-child{border-bottom:none}
-  .suggestion-item:hover,.suggestion-item.active{background:#f1f5f9}
-    footer{max-width:900px;margin:12px auto;color:#64748b;font-size:13px}
-    @media (max-width:700px){.row{grid-template-columns:1fr}}
+    :root {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f7fafc;
+      color: #0f172a
+    }
+
+    header {
+      max-width: 900px;
+      margin: 0 auto 18px
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(12, 18, 30, 0.06);
+      max-width: 900px;
+      margin: 0 auto
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: 600
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s
+    }
+
+    #map {
+      height: 360px;
+      border-radius: 8px;
+      margin-top: 12px
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 0;
+      background: #111827;
+      color: white;
+      cursor: pointer
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827
+    }
+
+    .muted {
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 6px
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .full {
+      grid-column: 1/-1
+    }
+
+    .preview {
+      max-width: 160px;
+      max-height: 120px;
+      border-radius: 6px;
+      margin-top: 8px;
+      object-fit: cover;
+      border: 1px solid #cbd5e1
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+      margin-top: 8px
+    }
+
+    .field-error {
+      border-color: #b91c1c !important;
+      background-color: #fef2f2 !important
+    }
+
+    .field-error:focus {
+      outline-color: #b91c1c !important;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1)
+    }
+
+    .error-message {
+      color: #b91c1c;
+      font-size: 13px;
+      margin-top: 4px;
+      display: none
+    }
+
+    .suggestions {
+      position: relative
+    }
+
+    .suggestions-list {
+      position: absolute;
+      z-index: 1200;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      max-height: 220px;
+      overflow: auto;
+      box-shadow: 0 6px 18px rgba(12, 18, 30, 0.06);
+      margin-top: 6px
+    }
+
+    .suggestion-item {
+      padding: 8px 10px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.03)
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.active {
+      background: #f1f5f9
+    }
+
+    footer {
+      max-width: 900px;
+      margin: 12px auto;
+      color: #64748b;
+      font-size: 13px
+    }
+
+    @media (max-width:700px) {
+      .row {
+        grid-template-columns: 1fr
+      }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <h1>Drone activity report</h1>
-    <p class="muted">Use this form to report observed drone activity. A timestamp and a location are required. You may optionally attach a photo and a description.</p>
+    <p class="muted">Use this form to report observed drone activity. A timestamp and a location are required. You may
+      optionally attach a photo and a description.</p>
   </header>
 
   <form id="reportForm" class="card" action="/submit" method="POST" enctype="multipart/form-data" novalidate>
@@ -51,7 +191,8 @@
 
       <div>
         <label for="droneDesc">Drone description (optional)</label>
-        <input id="droneDesc" name="drone_description" type="text" placeholder="colour, size, model, lights, behaviour..." />
+        <input id="droneDesc" name="drone_description" type="text"
+          placeholder="colour, size, model, lights, behaviour..." />
       </div>
 
       <div class="full">
@@ -62,7 +203,8 @@
           <button type="button" id="cameraBtn">Take photo</button>
         </div>
         <div id="cameraContainer" style="display:none; margin-top:12px;">
-          <video id="cameraPreview" style="width:100%; max-width:640px; border-radius:8px;" autoplay playsinline></video>
+          <video id="cameraPreview" style="width:100%; max-width:640px; border-radius:8px;" autoplay
+            playsinline></video>
           <button type="button" id="captureBtn" style="margin-top:8px;">Capture photo</button>
           <button type="button" id="cancelCameraBtn" class="secondary" style="margin-top:8px;">Cancel</button>
           <canvas id="photoCanvas" style="display:none;"></canvas>
@@ -78,13 +220,15 @@
           <button type="button" id="useMyLocation">Use my device GPS</button>
           <button type="button" id="clearMarker" class="secondary">Clear location</button>
           <div style="flex:1;position:relative" class="suggestions">
-            <input id="address" type="text" placeholder="Enter address (e.g. 221B Baker St or 'Eiffel Tower')" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e2e8f0" autocomplete="off" />
+            <input id="address" type="text" placeholder="Enter address (e.g. 221B Baker St or 'Eiffel Tower')"
+              style="width:100%;padding:8px;border-radius:6px;border:1px solid #e2e8f0" autocomplete="off" />
             <div id="suggestions" class="suggestions-list" style="display:none"></div>
           </div>
           <button type="button" id="geocode" class="secondary">Find address</button>
         </div>
         <div class="muted">Click on the map to drop a marker. Latitude &amp; longitude will be recorded.</div>
-        <div class="error-message" id="location-error">Please specify the location (use map, GPS, or enter address)</div>
+        <div class="error-message" id="location-error">Please specify the location (use map, GPS, or enter address)
+        </div>
       </div>
 
       <div>
@@ -99,7 +243,8 @@
 
       <div class="full">
         <label for="notes">Additional notes (optional)</label>
-        <textarea id="notes" name="notes" rows="4" placeholder="Any other context: altitude estimate, direction, duration..."></textarea>
+        <textarea id="notes" name="notes" rows="4"
+          placeholder="Any other context: altitude estimate, direction, duration..."></textarea>
       </div>
     </div>
 
@@ -112,35 +257,37 @@
   </form>
 
   <footer>
-    Tip: This is a client-side form example. To send reports to a server, set <code>form.action</code> to your endpoint and ensure server-side validation mirrors the client-side rules (timestamp + location required).
+    Tip: This is a client-side form example. To send reports to a server, set <code>form.action</code> to your endpoint
+    and ensure server-side validation mirrors the client-side rules (timestamp + location required).
   </footer>
 
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     // --- Utilities ---
     const $ = id => document.getElementById(id);
 
     // Set default timestamp to now (local) rounded to minutes
-    (function setDefaultTimestamp(){
+    (function setDefaultTimestamp() {
       const ts = new Date();
-      ts.setSeconds(0,0);
-      const localISO = new Date(ts.getTime() - ts.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      ts.setSeconds(0, 0);
+      const localISO = new Date(ts.getTime() - ts.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       $('timestamp').value = localISO;
     })();
 
     // --- Map setup ---
-    const map = L.map('map', {attributionControl:false}).setView([51.505, -0.09], 13);
+    const map = L.map('map', { attributionControl: false }).setView([51.505, -0.09], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
     let marker = null;
-    function setMarker(lat, lng, label){
-      if(marker) map.removeLayer(marker);
-      marker = L.marker([lat,lng], {title: label||'Reported drone location'}).addTo(map);
-      map.setView([lat,lng], 16);
+    function setMarker(lat, lng, label) {
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([lat, lng], { title: label || 'Reported drone location' }).addTo(map);
+      map.setView([lat, lng], 16);
       $('latitude').value = lat.toFixed(6);
       $('longitude').value = lng.toFixed(6);
       $('location-error').style.display = 'none';
@@ -148,13 +295,13 @@
       hideError();
     }
 
-    map.on('click', function(e){
+    map.on('click', function (e) {
       setMarker(e.latlng.lat, e.latlng.lng);
     });
 
     // Geolocation button
-    $('useMyLocation').addEventListener('click', ()=>{
-      if(!navigator.geolocation){
+    $('useMyLocation').addEventListener('click', () => {
+      if (!navigator.geolocation) {
         showError('Geolocation not supported by your browser.');
         return;
       }
@@ -162,29 +309,29 @@
         setMarker(pos.coords.latitude, pos.coords.longitude, 'Device GPS position');
       }, err => {
         showError('Unable to get your location: ' + (err.message || err.code));
-      }, {enableHighAccuracy:true,timeout:10000});
+      }, { enableHighAccuracy: true, timeout: 10000 });
     });
 
-    $('clearMarker').addEventListener('click', ()=>{
-      if(marker) map.removeLayer(marker);
+    $('clearMarker').addEventListener('click', () => {
+      if (marker) map.removeLayer(marker);
       marker = null;
       $('latitude').value = '';
       $('longitude').value = '';
     });
 
     // --- Address geocoding via Nominatim (OpenStreetMap) ---
-    $('geocode').addEventListener('click', async ()=>{
+    $('geocode').addEventListener('click', async () => {
       const q = $('address').value.trim();
-      if(!q){ showError('Please enter an address to search.'); return; }
+      if (!q) { showError('Please enter an address to search.'); return; }
       showError('Searching...');
-      try{
+      try {
         const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q);
-        const res = await fetch(url, {headers:{'Accept-Language':'en'}});
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
         const results = await res.json();
-        if(!results || results.length===0){ showError('No results found for that address.'); return; }
+        if (!results || results.length === 0) { showError('No results found for that address.'); return; }
         const best = results[0];
         setMarker(parseFloat(best.lat), parseFloat(best.lon), best.display_name);
-      }catch(e){
+      } catch (e) {
         showError('Address lookup failed.');
       }
     });
@@ -195,47 +342,47 @@
     let suggestResults = [];
     let activeIndex = -1;
 
-    function debounce(fn, wait){
+    function debounce(fn, wait) {
       let t = null;
-      return function(...args){
+      return function (...args) {
         clearTimeout(t);
-        t = setTimeout(()=>fn.apply(this,args), wait);
+        t = setTimeout(() => fn.apply(this, args), wait);
       };
     }
 
-    async function fetchSuggestions(q){
-      if(!q) return [];
-      try{
+    async function fetchSuggestions(q) {
+      if (!q) return [];
+      try {
         const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q);
-        const res = await fetch(url, {headers:{'Accept-Language':'en'}});
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
         const results = await res.json();
         return results || [];
-      }catch(e){
+      } catch (e) {
         return [];
       }
     }
 
-    function renderSuggestions(results){
+    function renderSuggestions(results) {
       suggestResults = results;
       activeIndex = -1;
-      if(!results || results.length===0){
+      if (!results || results.length === 0) {
         suggestionsEl.style.display = 'none';
         suggestionsEl.innerHTML = '';
         return;
       }
-      suggestionsEl.innerHTML = results.map((r,i)=>
+      suggestionsEl.innerHTML = results.map((r, i) =>
         `<div class="suggestion-item" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}">${escapeHtml(r.display_name)}</div>`
       ).join('');
       suggestionsEl.style.display = 'block';
     }
 
-    function escapeHtml(s){
-      return s.replace(/[&<>\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    function escapeHtml(s) {
+      return s.replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     }
 
-    const debounced = debounce(async function(){
+    const debounced = debounce(async function () {
       const q = addressInput.value.trim();
-      if(!q){ renderSuggestions([]); return; }
+      if (!q) { renderSuggestions([]); return; }
       const res = await fetchSuggestions(q);
       renderSuggestions(res);
     }, 300);
@@ -243,60 +390,60 @@
     addressInput.addEventListener('input', debounced);
 
     // Click selection
-    suggestionsEl.addEventListener('click', function(ev){
+    suggestionsEl.addEventListener('click', function (ev) {
       const item = ev.target.closest('.suggestion-item');
-      if(!item) return;
+      if (!item) return;
       const idx = parseInt(item.getAttribute('data-idx'));
       const lat = parseFloat(item.getAttribute('data-lat'));
       const lon = parseFloat(item.getAttribute('data-lon'));
       const display = suggestResults[idx] && suggestResults[idx].display_name;
-      if(display) addressInput.value = display;
+      if (display) addressInput.value = display;
       renderSuggestions([]);
       setMarker(lat, lon, display);
     });
 
     // keyboard navigation for suggestions
-    addressInput.addEventListener('keydown', function(ev){
-      if(suggestionsEl.style.display === 'none') return;
+    addressInput.addEventListener('keydown', function (ev) {
+      if (suggestionsEl.style.display === 'none') return;
       const items = suggestionsEl.querySelectorAll('.suggestion-item');
-      if(!items.length) return;
-      if(ev.key === 'ArrowDown'){
+      if (!items.length) return;
+      if (ev.key === 'ArrowDown') {
         ev.preventDefault();
         activeIndex = Math.min(activeIndex + 1, items.length - 1);
         updateActive(items);
-      } else if(ev.key === 'ArrowUp'){
+      } else if (ev.key === 'ArrowUp') {
         ev.preventDefault();
         activeIndex = Math.max(activeIndex - 1, 0);
         updateActive(items);
-      } else if(ev.key === 'Enter'){
+      } else if (ev.key === 'Enter') {
         ev.preventDefault();
-        if(activeIndex >= 0 && items[activeIndex]){
+        if (activeIndex >= 0 && items[activeIndex]) {
           items[activeIndex].click();
         } else {
           // If no active, fallback to geocode button action
           $('geocode').click();
         }
-      } else if(ev.key === 'Escape'){
+      } else if (ev.key === 'Escape') {
         renderSuggestions([]);
       }
     });
 
-    function updateActive(items){
+    function updateActive(items) {
       items.forEach(it => it.classList.remove('active'));
-      if(activeIndex >= 0 && items[activeIndex]){
+      if (activeIndex >= 0 && items[activeIndex]) {
         items[activeIndex].classList.add('active');
         // ensure visible
         const el = items[activeIndex];
         const r = el.getBoundingClientRect();
         const c = suggestionsEl.getBoundingClientRect();
-        if(r.top < c.top) el.scrollIntoView({block:'nearest'});
-        if(r.bottom > c.bottom) el.scrollIntoView({block:'nearest'});
+        if (r.top < c.top) el.scrollIntoView({ block: 'nearest' });
+        if (r.bottom > c.bottom) el.scrollIntoView({ block: 'nearest' });
       }
     }
 
     // Hide suggestions when clicking outside
-    document.addEventListener('click', (ev)=>{
-      if(!ev.composedPath().includes(suggestionsEl) && ev.target !== addressInput){
+    document.addEventListener('click', (ev) => {
+      if (!ev.composedPath().includes(suggestionsEl) && ev.target !== addressInput) {
         renderSuggestions([]);
       }
     });
@@ -325,9 +472,9 @@
     // Handle camera activation
     cameraBtn.addEventListener('click', async () => {
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' }, 
-          audio: false 
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
         });
         cameraPreview.srcObject = mediaStream;
         cameraContainer.style.display = 'block';
@@ -344,38 +491,38 @@
       photoCanvas.width = cameraPreview.videoWidth;
       photoCanvas.height = cameraPreview.videoHeight;
       context.drawImage(cameraPreview, 0, 0, photoCanvas.width, photoCanvas.height);
-      
+
       // Generate timestamp for filename
       const timestamp = $('timestamp').value;
       const fileTimestamp = timestamp.replace(/[:-]/g, '').replace('T', '_');
       const fileName = `drone_photo_${fileTimestamp}.jpg`;
-      
+
       // Convert canvas to blob and create a File object
       photoCanvas.toBlob(blob => {
         const file = new File([blob], fileName, { type: 'image/jpeg' });
-        
+
         // Create a new FileList-like object
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         photoInput.files = dataTransfer.files;
-        
+
         // Show preview
         const img = $('photoPreview');
         img.src = photoCanvas.toDataURL('image/jpeg');
         img.style.display = 'inline-block';
-        
+
         // Save the photo to the drone-photos directory
         const formData = new FormData();
         formData.append('photo', file);
         formData.append('timestamp', timestamp);
-        
+
         fetch('/save-photo', {
           method: 'POST',
           body: formData
         }).catch(err => {
           console.error('Failed to save photo:', err);
         });
-        
+
         // Clean up camera
         stopCamera();
       }, 'image/jpeg');
@@ -396,29 +543,29 @@
     }
 
     // Handle file selection
-    photoInput.addEventListener('change', function(){
+    photoInput.addEventListener('change', function () {
       const f = this.files && this.files[0];
       const img = $('photoPreview');
-      if(!f){ img.style.display='none'; img.src=''; return; }
+      if (!f) { img.style.display = 'none'; img.src = ''; return; }
       const reader = new FileReader();
-      reader.onload = e => { 
-        img.src = e.target.result; 
-        img.style.display='inline-block';
+      reader.onload = e => {
+        img.src = e.target.result;
+        img.style.display = 'inline-block';
       };
       reader.readAsDataURL(f);
     });
 
     // --- Form validation and submit handling ---
-    function showError(msg){
+    function showError(msg) {
       const el = $('formErrors');
       el.style.display = msg ? 'block' : 'none';
       el.textContent = msg || '';
     }
-    function hideError(){ showError(''); }
+    function hideError() { showError(''); }
 
     function validateForm() {
       let isValid = true;
-      
+
       // Clear previous errors
       document.querySelectorAll('.field-error').forEach(field => {
         field.classList.remove('field-error');
@@ -449,57 +596,58 @@
       return isValid;
     }
 
-    $('reportForm').addEventListener('submit', function(ev){
+    $('reportForm').addEventListener('submit', function (ev) {
       ev.preventDefault();
-      
+
       if (!validateForm()) {
         return;
       }
 
       // Build the form data
       const payload = new FormData(this);
-      
+
       // Send to server
       fetch('/submit', {
         method: 'POST',
         body: payload
       })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        alert('Report submitted successfully!');
-        this.reset();
-        if (marker) map.removeLayer(marker);
-        marker = null;
-        $('photoPreview').style.display = 'none';
-        hideError();
-      })
-      .catch(error => {
-        showError('Error submitting report: ' + error.message);
-      });
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          alert('Report submitted successfully!');
+          this.reset();
+          if (marker) map.removeLayer(marker);
+          marker = null;
+          $('photoPreview').style.display = 'none';
+          hideError();
+        })
+        .catch(error => {
+          showError('Error submitting report: ' + error.message);
+        });
     });
 
     // Reset handler: clear marker & preview
-    $('reportForm').addEventListener('reset', ()=>{
-      setTimeout(()=>{
-        if(marker) map.removeLayer(marker);
+    $('reportForm').addEventListener('reset', () => {
+      setTimeout(() => {
+        if (marker) map.removeLayer(marker);
         marker = null;
-        $('photoPreview').style.display='none';
-        $('latitude').value='';
-        $('longitude').value='';
+        $('photoPreview').style.display = 'none';
+        $('latitude').value = '';
+        $('longitude').value = '';
         hideError();
         // reset timestamp to now
-        (function setDefault(){
-          const ts = new Date(); ts.setSeconds(0,0);
-          const localISO = new Date(ts.getTime() - ts.getTimezoneOffset()*60000).toISOString().slice(0,16);
+        (function setDefault() {
+          const ts = new Date(); ts.setSeconds(0, 0);
+          const localISO = new Date(ts.getTime() - ts.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
           $('timestamp').value = localISO;
         })();
-      },10);
+      }, 10);
     });
   </script>
 </body>
+
 </html>

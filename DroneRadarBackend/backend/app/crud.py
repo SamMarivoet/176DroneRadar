@@ -87,9 +87,14 @@ async def upsert_planes_bulk(planes: List[PlaneIn]):
     #  - Upsert any planes present (resetting their missed_updates to 0)
     #  - If a plane in the incoming batch reports `on_ground` remove it immediately
     #  - For any existing opensky-sourced plane NOT present in this snapshot,
-    #    increment `missed_updates` and delete those with missed_updates >= 2
+    #    increment `missed_updates` and delete those with missed_updates >= 3
     results = []
     incoming_icaos = []
+
+    # Determine source of incoming planes by first plane
+    p = planes[0]
+    bulk_source = getattr(p, 'source', None)
+
 
     # First pass: handle incoming planes
     for p in planes:
@@ -113,17 +118,19 @@ async def upsert_planes_bulk(planes: List[PlaneIn]):
 
     # Second pass: increment missed_updates for opensky planes not seen in this snapshot
     # Normalize incoming_icaos list for query
-    if incoming_icaos:
-        await database.db.planes.update_many(
-            {'icao': {'$nin': incoming_icaos}, 'source': 'opensky'},
-            {'$inc': {'missed_updates': 1}}
-        )
-    else:
-        # No incoming icao values: increment all opensky planes
-        await database.db.planes.update_many({'source': 'opensky'}, {'$inc': {'missed_updates': 1}})
+    if bulk_source in ['opensky', 'ogn']:
 
-    # Remove planes which missed >= 2 consecutive snapshots
-    await database.db.planes.delete_many({'source': 'opensky', 'missed_updates': {'$gte': 2}})
+        if incoming_icaos:
+            await database.db.planes.update_many(
+                {'icao': {'$nin': incoming_icaos}, 'source': bulk_source},
+                {'$inc': {'missed_updates': 1}}
+            )
+        else:
+            # No incoming icao values: increment all opensky planes
+            await database.db.planes.update_many({'source': bulk_source}, {'$inc': {'missed_updates': 1}})
+
+        # Remove planes which missed >= 3 consecutive snapshots
+        await database.db.planes.delete_many({'source': bulk_source, 'missed_updates': {'$gte': 3}})
 
     return results
 

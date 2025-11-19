@@ -74,3 +74,7 @@ async def verify_operator(credentials: HTTPBasicCredentials = Depends(security))
         )
     
     return credentials.username
+
+
+# Export for use in other modules
+__all__ = ['security', 'verify_admin', 'verify_airplanefeed', 'verify_operator', '_verify_password']

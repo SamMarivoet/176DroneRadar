@@ -29,6 +29,7 @@ async def post_single_plane(request: Request, payload: dict):
 
 @router.post('/bulk')
 async def post_planes_bulk(
+    request: Request,
     payload: List[dict],
     username: str = Depends(verify_airplanefeed)
 ):
@@ -73,6 +74,7 @@ async def get_planes(
 
 @router.delete('/{icao}')
 async def delete_plane(
+    request: Request,
     icao: str,
     username: str = Depends(verify_operator)
 ):

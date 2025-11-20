@@ -52,6 +52,8 @@ services:
       - backend
     environment:
       - API_URL=http://backend:8000
+      - OPENSKY_USERNAME=flightradartn512-api-client
+      - OPENSKY_PASSWORD=jjiSjcSOO8ar6Nw1WeMt3MyN3xzUZ95q
 
   sensors:
     build: ./Sensors/sensors_simulator

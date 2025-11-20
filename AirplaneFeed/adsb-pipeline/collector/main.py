@@ -20,6 +20,11 @@ POLL = float(os.getenv("POLL_SECONDS", "5"))
 # Where to POST the batch (backend service in compose)
 INGEST_URL = os.getenv("INGEST_URL", "http://backend:8000/planes/bulk")
 
+# OpenSky credentials (paid / higher limits)
+OPENSKY_USERNAME = os.getenv("OPENSKY_USERNAME")
+OPENSKY_PASSWORD = os.getenv("OPENSKY_PASSWORD")
+
+
 # Authentication credentials
 AUTH_USERNAME = os.getenv("AUTH_USERNAME", "airplanefeed")
 AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "pass")
@@ -34,7 +39,17 @@ def msg_id(icao: str, ts_aircraft: int) -> str:
 def fetch_opensky() -> dict:
     """Fetch JSON data from OpenSky Network for our bounding box."""
     params = dict(lamin=LAMIN, lamax=LAMAX, lomin=LOMIN, lomax=LOMAX)
-    resp = requests.get(OPENSKY_URL, params=params, timeout=20)
+
+    auth = None
+    if OPENSKY_USERNAME and OPENSKY_PASSWORD:
+        auth = HTTPBasicAuth(OPENSKY_USERNAME, OPENSKY_PASSWORD)
+
+    resp = requests.get(
+        OPENSKY_URL,
+        params=params,
+        auth=auth,
+        timeout=20
+    )
     resp.raise_for_status()
     return resp.json()
 

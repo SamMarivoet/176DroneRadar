@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- FILTER STATE ---
   let showDrones = true;
   let showPlanes = true;
+  let showOgn = true;
 
   function updateLayersVisibility() {
     showDrones ? map.addLayer(droneLayer) : map.removeLayer(droneLayer);
@@ -25,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- FILTER EVENTS ---
   const toggleDrones = document.getElementById('toggle-drones');
   const togglePlanes = document.getElementById('toggle-planes');
+  const toggleOgn = document.getElementById('toggle-ogn');
 
   toggleDrones.addEventListener('change', e => {
     showDrones = e.target.checked;
@@ -33,6 +35,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   togglePlanes.addEventListener('change', e => {
     showPlanes = e.target.checked;
+    updateLayersVisibility();
+  });
+
+  toggleOgn.addEventListener('change', e => {
+    showOgn = e.target.checked;
     updateLayersVisibility();
   });
 
@@ -73,8 +80,15 @@ document.addEventListener("DOMContentLoaded", () => {
           droneLayer.addLayer(marker);
         } else {
           // Plane marker
+
+          iconUrl = 'icons/plane.png';
+          if (p.source == 'ogn') {
+            if (!showOgn) return;
+            iconUrl = 'icons/glider.png';
+          }
+
           const icon = L.icon({
-            iconUrl: 'icons/plane.png',
+            iconUrl: iconUrl,
             iconSize: [24, 24],
             iconAnchor: [12, 12]
           });
@@ -91,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <b>Flight ${flight}</b><br>
             Country: ${p.country || ''}<br>
             Altitude: ${Math.round(alt)} m<br>
-            Speed: ${Math.round(spd*3.6)} km/h<br>
+            Speed: ${Math.round(spd * 3.6)} km/h<br>
             Heading: ${Math.round(heading)}°
           `);
           planeLayer.addLayer(marker);

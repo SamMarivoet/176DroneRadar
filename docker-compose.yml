@@ -55,6 +55,8 @@ services:
       - API_URL=http://backend:8000
       - OPENSKY_USERNAME=flightradartn512-api-client
       - OPENSKY_PASSWORD=jjiSjcSOO8ar6Nw1WeMt3MyN3xzUZ95q
+      - OPENSKY_CLIENT_ID=liekensced@gmail.com-api-client
+      - OPENSKY_CLIENT_SECRET=0CaXoURl6LY8jsfB9XHaSNVaKqaU1TpF
 
   sensors:
     build: ./Sensors/sensors_simulator

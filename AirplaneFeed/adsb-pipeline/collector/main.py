@@ -41,7 +41,7 @@ def fetch_opensky() -> dict:
     params = dict(lamin=LAMIN, lamax=LAMAX, lomin=LOMIN, lomax=LOMAX)
 
     auth = None
-    if OPENSKY_USERNAME and OPENSKY_PASSWORD:
+    if OPENSKY_USERNAME and OPENSKY_PASSWORD and False:
         auth = HTTPBasicAuth(OPENSKY_USERNAME, OPENSKY_PASSWORD)
 
     resp = requests.get(

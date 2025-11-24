@@ -94,22 +94,28 @@ def fetch_opensky() -> dict:
     
     headers = {}
     auth = None
+    auth_method = "none"
     
     # Prefer OAuth2 if credentials are available
     if OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET:
         try:
             token = get_opensky_token()
             headers["Authorization"] = f"Bearer {token}"
+            auth_method = "oauth2"
             print("[collector] Using OAuth2 authentication")
         except Exception as e:
             print(f"[collector] OAuth2 failed, falling back to basic auth if available: {e}", flush=True)
             # Fall back to basic auth if OAuth2 fails
             if OPENSKY_USERNAME and OPENSKY_PASSWORD:
                 auth = HTTPBasicAuth(OPENSKY_USERNAME, OPENSKY_PASSWORD)
+                auth_method = "basic"
                 print("[collector] Using legacy basic authentication")
+            else:
+                print("[collector] No fallback credentials, using anonymous API")
     elif OPENSKY_USERNAME and OPENSKY_PASSWORD:
         # Use legacy basic auth
         auth = HTTPBasicAuth(OPENSKY_USERNAME, OPENSKY_PASSWORD)
+        auth_method = "basic"
         print("[collector] Using legacy basic authentication")
     else:
         print("[collector] No authentication configured (using anonymous/rate-limited API)")
@@ -123,22 +129,58 @@ def fetch_opensky() -> dict:
             timeout=20
         )
         
-        # Handle token expiration
-        if resp.status_code == 401 and headers.get("Authorization"):
+        # Handle token expiration (OAuth2)
+        if resp.status_code == 401 and auth_method == "oauth2":
             print("[collector] Token expired or invalid, requesting new token...")
             global _access_token, _token_expires_at
             _access_token = None
             _token_expires_at = None
             
             # Retry with new token
-            token = get_opensky_token()
-            headers["Authorization"] = f"Bearer {token}"
+            try:
+                token = get_opensky_token()
+                headers["Authorization"] = f"Bearer {token}"
+                resp = requests.get(
+                    OPENSKY_URL,
+                    params=params,
+                    headers=headers,
+                    timeout=20
+                )
+            except Exception as e:
+                print(f"[collector] Failed to refresh token, trying basic auth: {e}", flush=True)
+                # Fall back to basic auth
+                if OPENSKY_USERNAME and OPENSKY_PASSWORD:
+                    auth = HTTPBasicAuth(OPENSKY_USERNAME, OPENSKY_PASSWORD)
+                    headers.pop("Authorization", None)
+                    resp = requests.get(
+                        OPENSKY_URL,
+                        params=params,
+                        auth=auth,
+                        timeout=20
+                    )
+                    auth_method = "basic"
+                else:
+                    # Fall back to no auth
+                    print("[collector] No basic auth available, trying anonymous...")
+                    headers.pop("Authorization", None)
+                    resp = requests.get(
+                        OPENSKY_URL,
+                        params=params,
+                        timeout=20
+                    )
+                    auth_method = "none"
+        
+        # Handle basic auth failure
+        if resp.status_code == 401 and auth_method == "basic":
+            print("[collector] Basic auth failed, falling back to anonymous API", flush=True)
+            # Retry without authentication
             resp = requests.get(
                 OPENSKY_URL,
                 params=params,
-                headers=headers,
                 timeout=20
             )
+            auth_method = "none"
+            print("[collector] Using anonymous API (rate-limited)")
         
         resp.raise_for_status()
         return resp.json()

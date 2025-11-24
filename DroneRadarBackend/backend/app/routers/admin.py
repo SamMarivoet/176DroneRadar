@@ -4,6 +4,8 @@ from .. import database
 from ..auth import _verify_password, verify_admin
 from ..dependencies import limiter
 import logging
+from typing import List
+from bson import ObjectId
 
 logger = logging.getLogger('backend.admin')
 
@@ -85,3 +87,48 @@ async def list_users(username: str = Depends(verify_admin)):
         if '_id' in user:
             user['_id'] = str(user['_id'])
     return users
+
+
+@router.get('/drone-reports')
+async def list_active_drone_reports(limit: int = 100, username: str = Depends(verify_admin)):
+    """List active drone reports (source == 'dronereport'). Returns up to `limit` reports."""
+    # Only return reports that are not hidden by admins. Use `admin_visible` flag for soft-hide.
+    cursor = database.db.planes.find(
+        {'source': 'dronereport', 'admin_visible': {'$ne': False}},
+        projection={'_id': 1, 'drone_description': 1, 'timestamp': 1, 'latitude': 1, 'longitude': 1, 'image_id': 1, 'created_at': 1}
+    ).sort('created_at', -1).limit(limit)
+    results = await cursor.to_list(length=limit)
+    # stringify _id
+    for doc in results:
+        if '_id' in doc:
+            doc['_id'] = str(doc['_id'])
+    return results
+
+
+class DeleteReportsRequest(BaseModel):
+    ids: List[str]
+
+
+@router.post('/drone-reports/delete')
+async def delete_drone_reports(payload: DeleteReportsRequest, username: str = Depends(verify_admin)):
+    """Soft-hide one or more drone reports by their document _id values. Admin only.
+
+    This does not remove documents from the database; it marks them with `admin_visible=false`
+    so they will not appear in the admin listing but remain in the database for auditing.
+    """
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail='No ids provided')
+
+    object_ids = []
+    for s in payload.ids:
+        try:
+            object_ids.append(ObjectId(s))
+        except Exception:
+            raise HTTPException(status_code=400, detail=f'Invalid id: {s}')
+
+    # Soft-hide only docs that are drone reports to avoid accidental modification
+    res = await database.db.planes.update_many(
+        {'_id': {'$in': object_ids}, 'source': 'dronereport'},
+        {'$set': {'admin_visible': False}}
+    )
+    return {'matched_count': res.matched_count, 'modified_count': res.modified_count}

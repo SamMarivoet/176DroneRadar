@@ -42,6 +42,11 @@ async def init_db(retries: int = 20, delay: float = 0.5):
     await db.planes.create_index('last_seen')
     # Index source and last_seen for efficient archiving queries
     await db.planes.create_index([('source', 1), ('last_seen', 1)])
+    # Additional indexes to speed statistics queries and admin filters
+    await db.planes.create_index('drone_type')
+    await db.planes.create_index('altitude')
+    await db.planes.create_index('admin_visible')
+    await db.planes.create_index([('created_at', -1)])
 
     # Ensure indexes for archive collection
     await db.archive.create_index([('position', '2dsphere')])

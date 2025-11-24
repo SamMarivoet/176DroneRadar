@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Statistics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-refresh:hover {
+            background: #5568d3;
+        }
+
+        .btn-back {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-back:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-logout {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-logout:hover {
+            background: #ee5a5a;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card.drones {
+            border-left-color: #f093fb;
+        }
+
+        .stat-card.archive {
+            border-left-color: #4facfe;
+        }
+
+        .stat-card.health {
+            border-left-color: #43e97b;
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            color: #333;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .subvalue {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stats-table thead {
+            background: #f9f9f9;
+        }
+
+        .stats-table th {
+            text-align: left;
+            padding: 12px;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 600;
+        }
+
+        .stats-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+
+        .stats-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .list-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .list-item-value {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .error {
+            background: #ffe0e0;
+            color: #c00;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c00;
+        }
+
+        .success {
+            background: #e0f7e0;
+            color: #0c0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0c0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: #e0f7e0;
+            color: #0c0;
+        }
+
+        .badge-warning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .badge-info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-card .value {
+                font-size: 24px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                padding: 10px 15px;
+                font-size: 12px;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        /* Thumbnail image */
+        .thumb {
+            width: 56px;
+            height: 56px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid #eee;
+        }
+
+        /* Image viewer modal */
+        #imageModal .modal-content {
+            max-width: 900px;
+            padding: 12px;
+        }
+
+        #imageModal img { max-width: 100%; display:block; margin:0 auto; }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📊 Admin Statistics Dashboard</h1>
+                <div class="timestamp" id="lastUpdate">Last update: never</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-refresh" onclick="refreshData()">🔄 Refresh</button>
+                <button class="btn-back" onclick="goBack()">← Back to Map</button>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <!-- Main Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Active Objects</h3>
+                <div class="value" id="totalPlanes">-</div>
+                <div class="subvalue">Planes & Drones Combined</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>Active ADS-B Planes</h3>
+                <div class="value" id="activePlanes">-</div>
+                <div class="subvalue" id="activePlanesDetail"></div>
+            </div>
+
+            <div class="stat-card drones">
+                <h3>Active Drone Reports</h3>
+                <div class="value" id="activeDrones">-</div>
+                <div class="subvalue" id="droneDetail"></div>
+            </div>
+
+            <div class="stat-card archive">
+                <h3>Archived Reports</h3>
+                <div class="value" id="archivedReports">-</div>
+                <div class="subvalue">Older than 1 hour</div>
+            </div>
+        </div>
+
+        <!-- Tabs for different views -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab" onclick="switchTab('activity')">Recent Activity</button>
+            <button class="tab" onclick="switchTab('details')">Detailed Stats</button>
+            <button class="tab" onclick="switchTab('health')">Database Health</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="section">
+                <h2>Distribution by Source</h2>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sourceStats">
+                        <tr>
+                            <td colspan="3" class="loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>Drone Type Distribution</h2>
+                <div id="droneTypeStats"></div>
+            </div>
+
+            <div class="section">
+                <h2>Drone Altitude Distribution</h2>
+                <div id="altitudeStats"></div>
+            </div>
+
+            <div class="section">
+                <!-- Top Countries removed (Belgium-only deployment) -->
+            </div>
+        </div>
+
+        <!-- Activity Tab -->
+        <div id="activity" class="tab-content">
+            <div class="section">
+                <h2>Last 24 Hours Activity</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Active Planes (24h)</h3>
+                        <div class="value" id="recentPlanes">-</div>
+                    </div>
+                    <div class="stat-card drones">
+                        <h3>Drone Reports (24h)</h3>
+                        <div class="value" id="recentDrones">-</div>
+                    </div>
+                    <div class="stat-card archive">
+                        <h3>Archived (24h)</h3>
+                        <div class="value" id="recentlyArchived">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Latest Updates</h2>
+                <div id="latestUpdates"></div>
+            </div>
+
+            <div class="section">
+                <h2>Recently Archived</h2>
+                <div id="recentlyArchivedList"></div>
+            </div>
+            
+            <div class="section">
+                <h2>Manage Drone Reports</h2>
+                <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="selectAllReports"> Select all</label>
+                    <button class="btn-primary" id="btn-discard-selected" style="background:#ff6b6b;">Discard selected</button>
+                    <div style="flex:1"></div>
+                    <div id="droneReportsStatus" style="color:#999; font-size:12px"></div>
+                </div>
+                <div id="droneReportsList">
+                    <div class="loading">Loading drone reports...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Stats Tab -->
+        <div id="details" class="tab-content">
+            <div class="section">
+                <h2>Detailed Statistics</h2>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailedStats">
+                        <tr>
+                            <td colspan="2" class="loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Health Tab -->
+        <div id="health" class="tab-content">
+            <div class="section">
+                <h2>Database Health Status</h2>
+                <div id="healthStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirmTitle">Confirm Action</h2>
+            <p id="confirmMessage"></p>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="confirmAction()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let pendingAction = null;
+        const BACKEND_URL = 'http://localhost:8000';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            refreshData();
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+
+        // Authentication check
+        async function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+            const [username, password] = token.split(':');
+            currentUser = username;
+        }
+
+        // Get auth header
+        function getAuthHeader() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return null;
+            const [username, password] = token.split(':');
+            return 'Basic ' + btoa(username + ':' + password);
+        }
+
+        // API call helper
+        async function apiCall(endpoint) {
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+                    headers: {
+                        'Authorization': getAuthHeader(),
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    showError('Authentication failed. Please login again.');
+                    logout();
+                    return null;
+                }
+
+                if (!response.ok) {
+                    showError(`Error: ${response.statusText}`);
+                    return null;
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                showError(`Error: ${error.message}`);
+                return null;
+            }
+        }
+
+        // Refresh all data
+        async function refreshData() {
+            console.log('Refreshing data...');
+            const [overview, activity, health] = await Promise.all([
+                apiCall('/statistics/overview'),
+                apiCall('/statistics/recent-activity?hours=24'),
+                apiCall('/statistics/database-health')
+            ]);
+
+            if (overview) updateOverview(overview);
+            if (activity) updateActivity(activity);
+            if (health) updateHealth(health);
+
+            // Load the drone reports management list separately
+            await loadDroneReports();
+
+            document.getElementById('lastUpdate').textContent = 
+                'Last update: ' + new Date().toLocaleTimeString();
+        }
+
+        // Helper to POST JSON with auth
+        async function postJSON(endpoint, body) {
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': getAuthHeader(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (response.status === 401) {
+                    showError('Authentication failed. Please login again.');
+                    logout();
+                    return null;
+                }
+
+                if (!response.ok) {
+                    const txt = await response.text().catch(() => response.statusText);
+                    showError(`Error: ${response.status} ${txt}`);
+                    return null;
+                }
+
+                return await response.json();
+            } catch (err) {
+                console.error('POST Error', err);
+                showError(`Error: ${err.message}`);
+                return null;
+            }
+        }
+
+        // --- Drone reports management ---
+        async function loadDroneReports() {
+            const container = document.getElementById('droneReportsList');
+            const status = document.getElementById('droneReportsStatus');
+            container.innerHTML = '<div class="loading">Loading drone reports...</div>';
+            status.textContent = '';
+            const data = await apiCall('/admin/drone-reports?limit=200');
+            if (!data) {
+                container.innerHTML = '<div class="error">Failed to load drone reports</div>';
+                return;
+            }
+
+            if (!Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<div class="loading">No active drone reports</div>';
+                return;
+            }
+
+            // Build table
+            let html = '<table class="stats-table"><thead><tr><th></th><th>Time</th><th>Description</th><th>Location</th><th>Image</th></tr></thead><tbody>';
+            data.forEach(r => {
+                const id = r._id;
+                const time = r.timestamp || r.created_at || '';
+                const tstr = time ? new Date(time).toLocaleString() : '';
+                const desc = r.drone_description || r.notes || 'No description';
+                const lat = r.latitude || r.lat || '';
+                const lon = r.longitude || r.lon || '';
+                const imageId = r.image_id || r.photo_filename || r.image || '';
+
+                let imgHtml = '';
+                if (imageId) {
+                    const url = `${BACKEND_URL}/images/${imageId}`;
+                    imgHtml = `<img src="${url}" class="thumb" onclick="showImage('${imageId}')" alt="img">`;
+                }
+
+                html += `<tr>
+                    <td><input type="checkbox" class="report-check" data-id="${id}"></td>
+                    <td>${tstr}</td>
+                    <td>${escapeHtml(desc)}</td>
+                    <td>${lat && lon ? (lat+','+lon) : ''}</td>
+                    <td>${imgHtml}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+
+            // Wire select all
+            const selectAll = document.getElementById('selectAllReports');
+            selectAll.checked = false;
+            selectAll.onchange = () => {
+                document.querySelectorAll('.report-check').forEach(cb => cb.checked = selectAll.checked);
+            };
+
+            // Discard button
+            const btnDiscard = document.getElementById('btn-discard-selected');
+            btnDiscard.onclick = () => {
+                const selected = Array.from(document.querySelectorAll('.report-check')).filter(c=>c.checked).map(c=>c.dataset.id);
+                if (selected.length === 0) {
+                    showError('No reports selected');
+                    return;
+                }
+                // confirm
+                pendingAction = () => deleteSelectedReports(selected);
+                document.getElementById('confirmTitle').textContent = 'Discard reports';
+                document.getElementById('confirmMessage').textContent = `Discard ${selected.length} selected report(s)? This cannot be undone.`;
+                document.getElementById('confirmModal').classList.add('show');
+            };
+        }
+
+        async function deleteSelectedReports(ids) {
+            const status = document.getElementById('droneReportsStatus');
+            status.textContent = 'Deleting...';
+            const res = await postJSON('/admin/drone-reports/delete', {ids});
+            if (!res) {
+                status.textContent = 'Failed to delete';
+                return;
+            }
+            const modified = res.modified_count || 0;
+            const matched = res.matched_count || 0;
+            if (modified > 0) {
+                status.textContent = `Hidden ${modified} report(s)`;
+            } else if (matched > 0) {
+                status.textContent = `No reports were changed (already hidden)`;
+            } else {
+                status.textContent = `No matching drone reports found`;
+            }
+            // refresh UI and stats
+            await loadDroneReports();
+            await refreshData();
+            setTimeout(()=> status.textContent = '', 4000);
+        }
+
+        // Show image modal
+        function showImage(imageId) {
+            const modal = document.getElementById('imageModal');
+            const img = document.getElementById('imageModalImg');
+            img.src = `${BACKEND_URL}/images/${imageId}`;
+            modal.classList.add('show');
+        }
+
+        // Escape HTML helper
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        // Update overview section
+        function updateOverview(data) {
+            document.getElementById('totalPlanes').textContent = data.total_planes;
+            document.getElementById('activePlanes').textContent = data.active_planes;
+            document.getElementById('activeDrones').textContent = data.active_drones;
+            document.getElementById('archivedReports').textContent = data.archived_reports;
+
+            // Update source stats
+            let sourceHtml = '';
+            let total = 0;
+            const sourceEntries = Object.entries(data.by_source || {});
+            sourceEntries.forEach(([source, count]) => {
+                total += count;
+            });
+
+            sourceEntries.forEach(([source, count]) => {
+                const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                sourceHtml += `
+                    <tr>
+                        <td><span class="badge badge-info">${source}</span></td>
+                        <td>${count}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${percentage}%"></div>
+                                </div>
+                                ${percentage}%
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('sourceStats').innerHTML = sourceHtml;
+
+            // Update drone type stats
+            let droneTypeHtml = '';
+            Object.entries(data.drone_types || {}).forEach(([type, count]) => {
+                droneTypeHtml += `
+                    <div class="list-item">
+                        <span class="list-item-name">${type}</span>
+                        <span class="list-item-value">${count}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('droneTypeStats').innerHTML = droneTypeHtml || '<p>No data</p>';
+
+            // Update altitude stats
+            let altitudeHtml = '';
+            Object.entries(data.drone_altitudes || {}).forEach(([alt, count]) => {
+                altitudeHtml += `
+                    <div class="list-item">
+                        <span class="list-item-name">${alt}</span>
+                        <span class="list-item-value">${count}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('altitudeStats').innerHTML = altitudeHtml || '<p>No data</p>';
+        }
+
+        // Update activity section
+        function updateActivity(data) {
+            document.getElementById('recentPlanes').textContent = data.recent_planes;
+            document.getElementById('recentDrones').textContent = data.recent_drones;
+            document.getElementById('recentlyArchived').textContent = data.recently_archived;
+
+            // Latest updates
+            let updatesHtml = '';
+            (data.latest_updates || []).forEach(update => {
+                const name = update.flight || update.callsign || update.icao || 'Unknown';
+                const time = update.last_seen ? new Date(update.last_seen).toLocaleTimeString() : 'N/A';
+                updatesHtml += `
+                    <div class="list-item">
+                        <div>
+                            <div class="list-item-name">${name}</div>
+                            <div style="color: #999; font-size: 12px;">${update.source || 'unknown'} • ${time}</div>
+                        </div>
+                        <span class="badge badge-success">${update.source || 'unknown'}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('latestUpdates').innerHTML = updatesHtml || '<p>No recent updates</p>';
+
+            // Recently archived
+            let archivedHtml = '';
+            (data.latest_archived || []).forEach(arch => {
+                const desc = arch.drone_description || 'No description';
+                const time = arch.archived_at ? new Date(arch.archived_at).toLocaleTimeString() : 'N/A';
+                archivedHtml += `
+                    <div class="list-item">
+                        <div>
+                            <div class="list-item-name">${desc}</div>
+                            <div style="color: #999; font-size: 12px;">Archived at ${time}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('recentlyArchivedList').innerHTML = archivedHtml || '<p>No recently archived</p>';
+        }
+
+        // Top countries are not displayed for Belgium-only deployment
+
+        // Update health section
+        function updateHealth(data) {
+            if (data.error) {
+                document.getElementById('healthStatus').innerHTML = `<div class="error">Error loading health data: ${data.error}</div>`;
+                return;
+            }
+
+            let healthHtml = '';
+            const collections = data.collections || {};
+            
+            Object.entries(collections).forEach(([name, stats]) => {
+                healthHtml += `
+                    <div class="list-item" style="align-items: flex-start; padding: 15px 0;">
+                        <div style="flex: 1;">
+                            <div class="list-item-name" style="text-transform: capitalize; margin-bottom: 8px;">${name}</div>
+                            <div style="color: #999; font-size: 12px;">
+                                Count: ${stats.count} | Size: ${stats.size_mb} MB
+                                ${stats.avg_doc_size ? `| Avg Doc: ${(stats.avg_doc_size / 1024).toFixed(2)} KB` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            healthHtml += `
+                <div class="list-item" style="padding-top: 15px; border-top: 2px solid #f0f0f0; margin-top: 15px;">
+                    <div class="list-item-name">Total Database Size</div>
+                    <div class="list-item-value">${data.total_size_mb} MB</div>
+                </div>
+            `;
+
+            document.getElementById('healthStatus').innerHTML = healthHtml;
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Error handling
+        function showError(message) {
+            const errorDiv = document.getElementById('errorContainer');
+            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Navigation
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            window.location.href = 'index.html';
+        }
+
+        function refreshData() {
+            location.reload();
+        }
+
+        // Modal functions
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+        }
+
+        function confirmAction() {
+            if (pendingAction) {
+                pendingAction();
+            }
+            closeModal();
+        }
+    </script>
+</body>
+</html>

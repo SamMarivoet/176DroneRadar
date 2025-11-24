@@ -190,10 +190,26 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // --- LOGIN / MODAL HANDLING (simple) ---
   const btnLogin = document.getElementById('btn-login');
+  const btnAdmin = document.getElementById('btn-admin');
+  const btnLogout = document.getElementById('btn-logout');
   const loginModal = document.getElementById('login-modal');
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
   const loginCancel = document.getElementById('login-cancel');
+
+  // Check if user is already authenticated
+  function updateLoginUI() {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      btnLogin.style.display = 'none';
+      btnAdmin.style.display = 'block';
+      btnLogout.style.display = 'block';
+    } else {
+      btnLogin.style.display = 'block';
+      btnAdmin.style.display = 'none';
+      btnLogout.style.display = 'none';
+    }
+  }
 
   function showLogin() {
     if (loginError) loginError.style.display = 'none';
@@ -207,13 +223,24 @@ document.addEventListener("DOMContentLoaded", () => {
   btnLogin?.addEventListener('click', () => showLogin());
   loginCancel?.addEventListener('click', () => hideLogin());
 
+  btnAdmin?.addEventListener('click', () => {
+    window.location.href = 'admin-stats.html';
+  });
+
+  btnLogout?.addEventListener('click', () => {
+    localStorage.removeItem('auth_token');
+    updateLoginUI();
+    hideLogin();
+  });
+
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!loginForm) return;
     const u = document.getElementById('login-username')?.value || '';
     const p = document.getElementById('login-password')?.value || '';
     try {
-      const resp = await fetch('/api/auth', {
+      // Try to verify credentials through the admin endpoint
+      const resp = await fetch('http://localhost:8000/admin/auth/verify', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username: u, password: p})
@@ -226,10 +253,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-      // success: close modal
-      hideLogin();
-      // optional: show a small confirmation
       
+      // success: store token and close modal
+      localStorage.setItem('auth_token', `${u}:${p}`);
+      hideLogin();
+      updateLoginUI();
+      
+      // Clear form
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
+      
+      // Show confirmation
       alert('Login successful');
     } catch (err) {
       if (loginError) {
@@ -238,5 +272,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+
+  // Initialize login UI
+  updateLoginUI();
 
 });

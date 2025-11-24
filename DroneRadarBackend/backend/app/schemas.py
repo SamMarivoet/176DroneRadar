@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 import time
@@ -10,7 +10,7 @@ class Position(BaseModel):
     type: str = Field('Point', const=True)
     coordinates: list[float] = Field(..., min_items=2, max_items=2)
 
-    @validator('coordinates')
+    @field_validator('coordinates')
     def coords_range(cls, v):
         lon, lat = v
         if not (-180 <= lon <= 180 and -90 <= lat <= 90):
@@ -57,20 +57,20 @@ class PlaneIn(BaseModel):
     image_id: Optional[str] = None
 
     # Validate latitude/longitude ranges
-    @validator('lat', 'latitude')
+    @field_validator('lat', 'latitude')
     def validate_latitude(cls, v):
         if v is not None and not (-90 <= v <= 90):
             raise ValueError('latitude must be between -90 and 90')
         return v
 
-    @validator('lon', 'longitude')
+    @field_validator('lon', 'longitude')
     def validate_longitude(cls, v):
         if v is not None and not (-180 <= v <= 180):
             raise ValueError('longitude must be between -180 and 180')
         return v
 
     # Validate altitude (reasonable ranges)
-    @validator('alt', 'alt_geom')
+    @field_validator('alt', 'alt_geom')
     def validate_altitude(cls, v):
         if v is not None:
             if v < -500:  # Below Dead Sea level
@@ -80,7 +80,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate speed (reasonable ranges)
-    @validator('spd')
+    @field_validator('spd')
     def validate_speed(cls, v):
         if v is not None:
             if v < 0:
@@ -90,14 +90,14 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate heading
-    @validator('heading')
+    @field_validator('heading')
     def validate_heading(cls, v):
         if v is not None and not (0 <= v <= 360):
             raise ValueError('heading must be between 0 and 360 degrees')
         return v
 
     # Validate vertical rate
-    @validator('vr')
+    @field_validator('vr')
     def validate_vertical_rate(cls, v):
         if v is not None:
             if abs(v) > 100:  # ~6000 m/min (extreme climb/descent)
@@ -105,7 +105,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate timestamp
-    @validator('ts_unix')
+    @field_validator('ts_unix')
     def validate_timestamp(cls, v):
         if v is not None:
             now = int(time.time())
@@ -117,7 +117,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate ICAO hex code format
-    @validator('icao')
+    @field_validator('icao')
     def validate_icao(cls, v):
         if v is not None:
             # ICAO should be 6 hex characters or alphanumeric for drones
@@ -128,7 +128,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate squawk code
-    @validator('squawk')
+    @field_validator('squawk')
     def validate_squawk(cls, v):
         if v is not None:
             # Squawk codes are 4 octal digits (0-7)
@@ -137,7 +137,7 @@ class PlaneIn(BaseModel):
         return v
 
     # # Validate source
-    # @validator('source')
+    # @field_validator('source')
     # def validate_source(cls, v):
     #     if v is not None:
     #         valid_sources = ['opensky', 'ogn', 'dronereport', 'radar', 'camera', 'adsb', 'mlat']
@@ -146,7 +146,7 @@ class PlaneIn(BaseModel):
     #     return v.lower() if v else v
 
     # Validate text fields for length and content
-    @validator('drone_description', 'notes', 'flight', 'country')
+    @field_validator('drone_description', 'notes', 'flight', 'country')
     def validate_text_fields(cls, v):
         if v is not None:
             if len(v) > 1000:  # Prevent excessive text
@@ -166,7 +166,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate image_id format (MongoDB ObjectId)
-    @validator('image_id')
+    @field_validator('image_id')
     def validate_image_id(cls, v):
         if v is not None:
             # MongoDB ObjectId is 24 hex characters
@@ -175,7 +175,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Validate no NoSQL injection patterns in sensitive fields
-    @validator('icao', 'flight', 'country')
+    @field_validator('icao', 'flight', 'country')
     def validate_no_nosql_injection(cls, v):
         if v is not None:
             # Reject MongoDB operators
@@ -184,7 +184,7 @@ class PlaneIn(BaseModel):
         return v
 
     # Root validator to ensure at least position OR coordinates exist
-    @root_validator
+    @model_validator
     def validate_has_position(cls, values):
         position = values.get('position')
         lat = values.get('lat') or values.get('latitude')

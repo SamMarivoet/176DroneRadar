@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const planeTrails = {}; // flight ID → array of LatLngs
   let currentTrail = null; // store the currently visible trail
 
-  
+
 
   // --- MAP SETUP ---
   const map = L.map('map').setView([50.85, 4.35], 7);
@@ -59,14 +59,28 @@ document.addEventListener("DOMContentLoaded", () => {
       planes.forEach(p => {
         const source = (p.source || p.producer || '').toString().toLowerCase();
         const isReport = source === 'dronereport' || source === 'form' || p.report_type || p.kind === 'report';
+        const isCamera = source === 'camera';
+        const isRadar = source === 'radar';
 
         const lat = p.lat || p.latitude || (p.position?.coordinates?.[1]);
         const lon = p.lon || p.longitude || (p.position?.coordinates?.[0]);
         if (typeof lat !== 'number' || typeof lon !== 'number') return;
 
-        if (isReport) {
-          // Drone marker
-          const color = getMarkerColor(p.drone_type || 'consumer');
+        if (isReport || isCamera || isRadar) {
+          // Drone marker with special colors for camera/radar
+          let color;
+          let droneType = p.drone_type || 'consumer';
+
+          if (isCamera) {
+            color = 'purple';
+            droneType = 'Camera Detection';
+          } else if (isRadar) {
+            color = 'darkorange';
+            droneType = 'Radar Detection';
+          } else {
+            color = getMarkerColor(droneType);
+          }
+
           const radius = getMarkerRadius(p.altitude || p.alt || '0-50m (low)');
           const marker = L.circleMarker([lat, lon], {
             color,
@@ -74,7 +88,8 @@ document.addEventListener("DOMContentLoaded", () => {
             fillOpacity: 0.8,
             radius
           }).bindPopup(`
-            <b>${capitalize(p.drone_type || 'Drone')} Report</b><br>
+            <b>${capitalize(droneType)} Report</b><br>
+            Source: ${source}<br>
             Altitude: ${p.altitude || p.alt || ''}<br>
             ${p.description || ''}<br>
             <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small>
@@ -82,9 +97,10 @@ document.addEventListener("DOMContentLoaded", () => {
           droneLayer.addLayer(marker);
         } else {
           // Plane marker
-
+          countryOrType = "Country: ";
           iconUrl = 'icons/plane.png';
           if (p.source == 'ogn') {
+            countryOrType = "Type: ";
             if (!showOgn) return;
             iconUrl = 'icons/glider.png';
           }
@@ -105,7 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
             rotationOrigin: 'center center'
           }).bindPopup(`
             <b>Flight ${flight}</b><br>
-            Country: ${p.country || ''}<br>
+            Source: ${p.source || 'Unknown'}<br>
+            ${countryOrType} ${p.country || ''}<br>
             Altitude: ${Math.round(alt)} m<br>
             Speed: ${Math.round(spd * 3.6)} km/h<br>
             Heading: ${Math.round(heading)}°
@@ -187,7 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateLoop(); // Start loop
-  
+
   // --- LOGIN / MODAL HANDLING (simple) ---
   const btnLogin = document.getElementById('btn-login');
   const loginModal = document.getElementById('login-modal');
@@ -215,8 +232,8 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const resp = await fetch('/api/auth', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username: u, password: p})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -229,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // success: close modal
       hideLogin();
       // optional: show a small confirmation
-      
+
       alert('Login successful');
     } catch (err) {
       if (loginError) {

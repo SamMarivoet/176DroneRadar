@@ -124,7 +124,7 @@ def periodic_post():
                 "ts_unix": ts_unix,
                 # labeling
                 "flight": data['name'].strip() if data['name'] else None,
-                "country": "OGN: " + data['aircraft_type'],
+                "country": data['aircraft_type'],
                 # position & motion
                 "lat": data['latitude'],
                 "lon": data['longitude'],

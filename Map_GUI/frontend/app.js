@@ -2,6 +2,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const planeTrails = {}; // flight ID → array of LatLngs
   let currentTrail = null; // store the currently visible trail
 
+  
+
   // --- MAP SETUP ---
   const map = L.map('map').setView([50.85, 4.35], 7);
 
@@ -185,4 +187,56 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateLoop(); // Start loop
+  
+  // --- LOGIN / MODAL HANDLING (simple) ---
+  const btnLogin = document.getElementById('btn-login');
+  const loginModal = document.getElementById('login-modal');
+  const loginForm = document.getElementById('login-form');
+  const loginError = document.getElementById('login-error');
+  const loginCancel = document.getElementById('login-cancel');
+
+  function showLogin() {
+    if (loginError) loginError.style.display = 'none';
+    if (loginModal) loginModal.style.display = 'flex';
+  }
+
+  function hideLogin() {
+    if (loginModal) loginModal.style.display = 'none';
+  }
+
+  btnLogin?.addEventListener('click', () => showLogin());
+  loginCancel?.addEventListener('click', () => hideLogin());
+
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!loginForm) return;
+    const u = document.getElementById('login-username')?.value || '';
+    const p = document.getElementById('login-password')?.value || '';
+    try {
+      const resp = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: u, password: p})
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (loginError) {
+          loginError.textContent = (data && data.detail) ? data.detail : 'Authentication failed';
+          loginError.style.display = 'block';
+        }
+        return;
+      }
+      // success: close modal
+      hideLogin();
+      // optional: show a small confirmation
+      
+      alert('Login successful');
+    } catch (err) {
+      if (loginError) {
+        loginError.textContent = err.message || 'Login error';
+        loginError.style.display = 'block';
+      }
+    }
+  });
+
 });

@@ -4,6 +4,10 @@ from .. import schemas, crud, database
 from ..auth import verify_airplanefeed, verify_operator
 from ..dependencies import limiter
 from fastapi.responses import JSONResponse
+from pymongo.results import InsertOneResult, UpdateResult
+import logging
+
+logger = logging.getLogger("backend.routers.planes")
 
 router = APIRouter(prefix="/planes", tags=["planes"])
 
@@ -18,13 +22,31 @@ async def post_single_plane(request: Request, payload: dict):
         raise HTTPException(status_code=400, detail=f'Invalid payload: {e}')
     
     result = await crud.upsert_plane(plane)
-    
-    return JSONResponse({
+
+    # Safely determine operation outcome; InsertOneResult does not have upserted_id/modified_count
+    inserted_id = None
+    modified_count = 0
+    upserted_id = None
+
+    if isinstance(result, InsertOneResult):
+        inserted_id = result.inserted_id
+    elif isinstance(result, UpdateResult):
+        modified_count = result.modified_count
+        upserted_id = result.upserted_id
+    else:
+        # Unexpected result type; log for diagnostics
+        logger.warning(f"Unexpected result type from upsert_plane: {type(result)}")
+
+    payload_out = {
         'status': 'ok',
         'icao': plane.icao or plane.icao24,
-        'upserted': result.upserted_id is not None,
-        'modified': result.modified_count > 0
-    })
+        'inserted': inserted_id is not None,
+        'modified': modified_count > 0,
+        'upserted_id': upserted_id,
+        'inserted_id': inserted_id
+    }
+    logger.debug(f"/planes/single outcome: {payload_out}")
+    return JSONResponse(payload_out)
 
 
 @router.post('/bulk')

@@ -4,7 +4,7 @@ import threading
 import time
 import tempfile
 from pathlib import Path
-from flask import Flask, jsonify, send_from_directory, abort, Response, stream_with_context
+from flask import Flask, jsonify, send_from_directory, abort, Response, stream_with_context, request
 import requests
 
 # where to write planefeed.json
@@ -82,6 +82,34 @@ def get_planes():
     except Exception:
         return jsonify({"planes": []})
     return jsonify(data)
+
+
+@app.route('/api/auth', methods=['POST'])
+def proxy_auth():
+    """Proxy POST /api/auth to the central backend /auth.
+
+    Expects JSON body with {username, password} and returns the
+    central backend response (status and JSON) so the frontend can
+    authenticate without CORS issues.
+    """
+    try:
+        payload = request.get_json(force=True)
+    except Exception:
+        payload = {}
+
+    backend_url = f"{BACKEND_API.rstrip('/')}/admin/auth/verify"
+    try:
+        resp = requests.post(backend_url, json=payload, timeout=8)
+        # Attempt to forward JSON response
+        try:
+            data = resp.json()
+            return jsonify(data), resp.status_code
+        except Exception:
+            # Non-JSON response: stream raw content
+            return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type', 'application/octet-stream'))
+    except Exception as e:
+        app.logger.debug(f"Auth proxy error contacting backend: {e}")
+        return jsonify({"detail": "auth backend unreachable"}), 502
 
 
 @app.route('/api/images/<image_id>')

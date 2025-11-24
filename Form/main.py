@@ -5,6 +5,21 @@ import json
 import os
 import logging
 
+# Flexible timestamp parsing helper
+def parse_timestamp(ts: str) -> datetime:
+    """Parse timestamp from form allowing minute or seconds precision.
+    Accepts formats: %Y-%m-%dT%H:%M, %Y-%m-%dT%H:%M:%S, and ISO fallback."""
+    for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(ts, fmt)
+        except ValueError:
+            pass
+    # Fallback ISO parse (strip trailing Z if present)
+    try:
+        return datetime.fromisoformat(ts.replace("Z", ""))
+    except Exception:
+        raise ValueError(f"Unrecognized timestamp format: {ts}")
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -61,8 +76,11 @@ def submit_report():
         # Handle photo if present: upload to backend images endpoint so images are stored in DB
         if photo and photo.filename:
             logger.debug(f"Processing photo: {photo.filename}")
-            # create a deterministic filename based on timestamp for readability
-            photo_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M")
+            try:
+                photo_timestamp = parse_timestamp(timestamp)
+            except ValueError as e:
+                logger.warning(f"Timestamp parse failed for photo; using current time. Reason: {e}")
+                photo_timestamp = datetime.utcnow()
             photo_filename = f"drone_photo_{photo_timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
 
             API_URL = os.getenv('API_URL', 'http://backend:8000')
@@ -118,16 +136,44 @@ def submit_report():
         ingest_url = f"{API_URL.rstrip('/')}/planes/single"
 
         try:
+            logger.info(f"Posting report to backend ingest URL: {ingest_url}")
             resp = requests.post(ingest_url, json=report, timeout=10)
-            if resp.status_code in (200, 201):
-                return jsonify({"status": "ok", "ingested": True, "backend_response": resp.json()}), 200
-            else:
-                # fallback: save local copy and return error info
-                filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                filepath = os.path.join("reports", filename)
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(report, f, ensure_ascii=False, indent=2)
-                return jsonify({"status": "ok", "ingested": False, "saved_to": filepath, "backend_status": resp.status_code}), 502
+            logger.info(f"Backend response status={resp.status_code} raw_body={resp.text[:500]}")
+            backend_json = None
+            try:
+                backend_json = resp.json()
+            except Exception:
+                backend_json = {}
+            logger.info(f"Backend response status: {resp.status_code}, body: {backend_json}")
+            # Treat as success if backend upserted, modified, or status ok
+            # Rate limit (429) or auth (401) should return user-friendly message but still 200 if we believe data persisted
+            if resp.status_code in (200, 201) or backend_json.get('inserted') or backend_json.get('modified') or backend_json.get('status') == 'ok':
+                return jsonify({"status": "ok", "ingested": True, "backend_response": backend_json}), 200
+            if resp.status_code == 429:
+                return jsonify({"status": "rate_limited", "ingested": False, "detail": backend_json.get('detail', 'Rate limit exceeded'), "retry": "Later"}), 200
+            if resp.status_code == 401:
+                return jsonify({"status": "auth_failed", "ingested": False, "detail": backend_json.get('detail', 'Auth failed') }), 200
+            reason = "unclassified"
+            if resp.status_code == 404:
+                reason = "backend_endpoint_not_found_or_wrong_path"
+            elif resp.status_code >= 500:
+                reason = "backend_internal_error"
+            elif resp.status_code == 400:
+                reason = "validation_error"
+            # fallback: save local copy and return diagnostic info (HTTP 200 to avoid frontend network error)
+            filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = os.path.join("reports", filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+            logger.warning(f"Fallback path triggered: status={resp.status_code} reason={reason} body={backend_json}")
+            return jsonify({
+                "status": "forward_failed",
+                "ingested": False,
+                "saved_to": filepath,
+                "backend_status": resp.status_code,
+                "reason": reason,
+                "backend_body": backend_json
+            }), 200
         except requests.RequestException as e:
             # network/backend failure: persist locally and return error
             filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -135,11 +181,19 @@ def submit_report():
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
             logger.error(f"Failed to POST to backend ingest endpoint: {e}")
-            return jsonify({"status": "ok", "ingested": False, "saved_to": filepath, "error": str(e)}), 502
-        
+            return jsonify({
+                "status": "network_error",
+                "ingested": False,
+                "saved_to": filepath,
+                "error": str(e)
+            }), 200
     except Exception as e:
-        logger.error(f"Error processing submission: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        # Unexpected failure after (possibly) partial processing: never raise 500
+        logger.error(f"Error processing submission (unexpected outer): {str(e)}", exc_info=True)
+        return jsonify({
+            "status": "unexpected_error",
+            "error": str(e)
+        }), 200
 
 @app.route("/save-photo", methods=["POST"])
 def save_photo():
@@ -160,8 +214,11 @@ def save_photo():
             logger.warning("No timestamp provided")
             return jsonify({"error": "No timestamp provided"}), 400
             
-        # Generate timestamp-based filename
-        photo_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M")
+        # Generate timestamp-based filename (flexible parsing like submit)
+        try:
+            photo_timestamp = parse_timestamp(timestamp)
+        except ValueError:
+            photo_timestamp = datetime.utcnow()
         photo_filename = f"drone_photo_{photo_timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
         photo_path = os.path.join("drone-photos", photo_filename)
         
@@ -187,3 +244,10 @@ if __name__ == "__main__":
 def serve_photo(filename):
     """Serve saved photos (used when building absolute image_url values)."""
     return send_from_directory('drone-photos', filename)
+
+
+@app.errorhandler(404)
+def not_found(e):
+    """Log and return 404 for unknown paths to help diagnose frontend console errors."""
+    logger.warning(f"404 Not Found: path={request.path} method={request.method}")
+    return jsonify({"error": "Not Found", "path": request.path}), 404

@@ -21,8 +21,8 @@ services:
       - MONGO_DB=planesdb
       - PORT=8000
     # REMOVE THESE LINES IN PRODUCTION - Don't expose backend to host
-    # ports:
-    #   - '8000:8000'
+    ports:
+      - '8000:8000'
 
   form:
     build:

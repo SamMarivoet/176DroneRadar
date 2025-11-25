@@ -33,7 +33,7 @@ async def archive_drone_reports_periodically():
             await asyncio.sleep(300)
             result = await crud.archive_old_drone_reports(age_hours=1.0)
             if result['archived'] > 0:
-                logger.info(f"Archived {result['archived']} drone reports")
+                logger.info(f"Archived {result['archived']} reports (dronereport, radar, camera)")
         except asyncio.CancelledError:
             logger.info("Archive task cancelled")
             break

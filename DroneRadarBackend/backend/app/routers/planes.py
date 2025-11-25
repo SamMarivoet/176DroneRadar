@@ -6,6 +6,7 @@ from ..dependencies import limiter
 from fastapi.responses import JSONResponse
 from pymongo.results import InsertOneResult, UpdateResult
 import logging
+import time
 
 logger = logging.getLogger("backend.routers.planes")
 
@@ -18,6 +19,8 @@ async def post_single_plane(request: Request, payload: dict):
     """Post a single plane/drone sighting. Public endpoint - rate limited."""
     try:
         plane = schemas.PlaneIn(**payload)
+        if not plane.icao:
+            plane.icao = f"report_{int(time.time() * 1000000)}"
     except Exception as e:
         raise HTTPException(status_code=400, detail=f'Invalid payload: {e}')
     

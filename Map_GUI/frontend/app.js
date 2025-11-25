@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const p = document.getElementById('login-password')?.value || '';
     try {
       // Try to verify credentials through the admin endpoint
-      const resp = await fetch('http://localhost:8000/admin/auth/verify', {
+      const resp = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: u, password: p })
@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-      
+
       // success: store token, update UI and close modal
       localStorage.setItem('auth_token', `${u}:${p}`);
       updateLoginUI();
@@ -278,7 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Clear form
       document.getElementById('login-username').value = '';
       document.getElementById('login-password').value = '';
-      
+
       alert('Login successful');
     } catch (err) {
       if (loginError) {

@@ -256,6 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const u = document.getElementById('login-username')?.value || '';
     const p = document.getElementById('login-password')?.value || '';
     try {
+      // Try to verify credentials through the admin endpoint
       const resp = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,9 +270,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-      // success: close modal
+
+      // success: store token, update UI and close modal
+      localStorage.setItem('auth_token', `${u}:${p}`);
+      updateLoginUI();
       hideLogin();
-      // optional: show a small confirmation
+      // Clear form
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
 
       alert('Login successful');
     } catch (err) {

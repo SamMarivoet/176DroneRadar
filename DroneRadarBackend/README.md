@@ -131,9 +131,10 @@ The backend maintains a small housekeeping field on plane documents named `misse
 
 Automatic archiving of drone reports
 ------------------------------------
-Drone reports (form submissions, i.e. documents with `source: 'dronereport'` or typical drone report fields) are automatically moved from the active `planes` collection to a separate `archive` collection after 1 hour.
 
-- The backend runs a background task every 5 minutes to archive drone reports older than 1 hour.
+Reports with `source: 'dronereport'`, `source: 'radar'`, or `source: 'camera'` (as well as legacy drone reports with typical fields) are automatically moved from the active `planes` collection to a separate `archive` collection after 1 hour.
+
+- The backend runs a background task every 5 minutes to archive these reports older than 1 hour.
 - Archiving is based on the `last_seen` field if present, or `created_at` for legacy reports.
 - The archiving logic is robust to older reports that may not have a `source` field or `last_seen`.
 - Archived reports are removed from the active `planes` collection and inserted into the `archive` collection with metadata (`archived_at`, `original_last_seen`).
@@ -148,7 +149,8 @@ Querying archived reports
 - By default, returns the most recently archived reports.
 
 Notes:
-- Only drone reports are archived; OpenSky/ADS-B planes are not affected.
+
+- Only reports with source `dronereport`, `radar`, or `camera` (and legacy drone reports) are archived; OpenSky/ADS-B planes are not affected.
 - The archiving process is automatic and requires no manual intervention for normal operation.
 
 If you have legacy drone reports that are not being archived, ensure they have either a `created_at` or `last_seen` field and at least one of the typical drone report fields (`drone_description`, `notes`, etc.).

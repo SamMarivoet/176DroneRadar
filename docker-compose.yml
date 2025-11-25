@@ -20,8 +20,9 @@ services:
       - MONGO_URI=mongodb://root:example@mongo:27017/?authSource=admin
       - MONGO_DB=planesdb
       - PORT=8000
-    ports:
-      - '8000:8000'
+    # REMOVE THESE LINES IN PRODUCTION - Don't expose backend to host
+    # ports:
+    #   - '8000:8000'
 
   form:
     build:
@@ -54,6 +55,8 @@ services:
       - API_URL=http://backend:8000
       - OPENSKY_USERNAME=flightradartn512-api-client
       - OPENSKY_PASSWORD=jjiSjcSOO8ar6Nw1WeMt3MyN3xzUZ95q
+      - OPENSKY_CLIENT_ID=liekensced@gmail.com-api-client
+      - OPENSKY_CLIENT_SECRET=0CaXoURl6LY8jsfB9XHaSNVaKqaU1TpF
 
   sensors:
     build: ./Sensors/sensors_simulator
@@ -70,8 +73,6 @@ services:
       - ./Sensors/sensors_simulator/image_pool:/data/image_pool:ro
     depends_on:
       - backend
-
-
 
   # ingest helper: runs ingest script in DroneRadarBackend/ingest (runs once)
   ingest:
@@ -128,4 +129,5 @@ services:
 volumes:
   mongo-data:
   sensor-data:
+
 

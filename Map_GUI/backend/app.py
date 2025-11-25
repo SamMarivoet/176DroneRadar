@@ -86,29 +86,30 @@ def get_planes():
 
 @app.route('/api/auth', methods=['POST'])
 def proxy_auth():
-    """Proxy POST /api/auth to the central backend /auth.
-
-    Expects JSON body with {username, password} and returns the
-    central backend response (status and JSON) so the frontend can
-    authenticate without CORS issues.
-    """
+    """Proxy authentication to backend with real client IP."""
     try:
         payload = request.get_json(force=True)
     except Exception:
         payload = {}
 
     backend_url = f"{BACKEND_API.rstrip('/')}/admin/auth/verify"
+    
+    # Forward client IP
+    headers = {
+        'X-Forwarded-For': request.remote_addr,
+        'X-Real-IP': request.remote_addr,
+        'Content-Type': 'application/json'
+    }
+    
     try:
-        resp = requests.post(backend_url, json=payload, timeout=8)
-        # Attempt to forward JSON response
+        resp = requests.post(backend_url, json=payload, headers=headers, timeout=8)
         try:
             data = resp.json()
             return jsonify(data), resp.status_code
         except Exception:
-            # Non-JSON response: stream raw content
-            return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type', 'application/octet-stream'))
+            return Response(resp.content, status=resp.status_code)
     except Exception as e:
-        app.logger.debug(f"Auth proxy error contacting backend: {e}")
+        app.logger.debug(f"Auth proxy error: {e}")
         return jsonify({"detail": "auth backend unreachable"}), 502
 
 

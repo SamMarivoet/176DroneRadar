@@ -1,15 +1,17 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from bson import ObjectId
 from .. import database
+from ..dependencies import limiter
 
 router = APIRouter(prefix="/images", tags=["images"])
 
 
 @router.post('')
-async def upload_image(file: UploadFile = File(...), icao: Optional[str] = Form(None)):
-    """Upload an image and store it in GridFS. Returns an image_id string."""
+@limiter.limit("10/hour")
+async def upload_image(request: Request, file: UploadFile = File(...), icao: Optional[str] = Form(None)):
+    """Upload an image and store it in GridFS. Returns an image_id string. Rate limited to 10 uploads per hour."""
     try:
         bucket = database.gridfs_bucket
         if bucket is None:

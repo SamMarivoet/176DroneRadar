@@ -198,4 +198,4 @@ async def get_database_health(username: str = Depends(verify_admin)):
         return {
             'error': str(e),
             'collections': {}
-        }
+}

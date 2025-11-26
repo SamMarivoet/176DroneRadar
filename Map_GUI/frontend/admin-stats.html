@@ -589,7 +589,7 @@
         // Global variables
         let currentUser = null;
         let pendingAction = null;
-        const BACKEND_URL = 'http://localhost:8000';
+        const BACKEND_URL = '/api';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -622,7 +622,8 @@
         async function apiCall(endpoint) {
             try {
                 const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-                    headers: {
+                    headers:
+                     {
                         'Authorization': getAuthHeader(),
                         'Content-Type': 'application/json'
                     }
@@ -971,10 +972,6 @@
         function logout() {
             localStorage.removeItem('auth_token');
             window.location.href = 'index.html';
-        }
-
-        function refreshData() {
-            location.reload();
         }
 
         // Modal functions

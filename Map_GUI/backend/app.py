@@ -160,3 +160,18 @@ def get_image(image_id: str):
 # serve static frontend assets
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
+
+
+@app.route('/api/statistics/<path:path>', methods=['GET', 'POST'])
+def proxy_statistics(path):
+    backend_url = f"{BACKEND_API.rstrip('/')}/statistics/{path}"
+    try:
+        if request.method == 'GET':
+            resp = requests.get(backend_url, headers=request.headers, timeout=8)
+        else:
+            resp = requests.post(backend_url, json=request.get_json(force=True), headers=request.headers, timeout=8)
+
+        return Response(resp.content, status=resp.status_code, headers=dict(resp.headers))
+    except Exception as e:
+        app.logger.debug(f"Statistics proxy error: {e}")
+        return jsonify({"detail": "statistics backend unreachable"}), 502

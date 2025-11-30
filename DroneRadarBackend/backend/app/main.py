@@ -37,15 +37,6 @@ app.include_router(admin.router)
 app.include_router(statistics.router)
 
 
-# Add CORS middleware as the FIRST middleware (outermost)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 # Global reference to background task
 archive_task = None

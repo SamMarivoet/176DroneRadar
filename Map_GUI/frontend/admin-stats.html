@@ -412,6 +412,13 @@
         .btn-secondary:hover {
             background: #e0e0e0;
         }
+
+        /* small helper for meta text */
+        .meta {
+            color:#999;
+            font-size:12px;
+            margin-top:6px;
+        }
     </style>
 </head>
 <body>
@@ -459,10 +466,10 @@
 
         <!-- Tabs for different views -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('overview')">Overview</button>
-            <button class="tab" onclick="switchTab('activity')">Recent Activity</button>
-            <button class="tab" onclick="switchTab('details')">Detailed Stats</button>
-            <button class="tab" onclick="switchTab('health')">Database Health</button>
+            <button class="tab active" onclick="switchTab('overview', event)">Overview</button>
+            <button class="tab" onclick="switchTab('activity', event)">Recent Activity</button>
+            <button class="tab" onclick="switchTab('details', event)">Detailed Stats</button>
+            <button class="tab" onclick="switchTab('health', event)">Database Health</button>
         </div>
 
         <!-- Overview Tab -->
@@ -585,6 +592,18 @@
         </div>
     </div>
 
+    <!-- Image Viewer Modal (added) -->
+    <div id="imageModal" class="modal" aria-hidden="true">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>Image</strong>
+                <button class="btn-secondary" onclick="closeImageModal()" style="padding:6px 10px;">Close</button>
+            </div>
+            <img id="imageModalImg" alt="report image">
+            <div class="meta" id="imageModalMeta"></div>
+        </div>
+    </div>
+
     <script>
         // Global variables
         let currentUser = null;
@@ -597,6 +616,24 @@
             refreshData();
             // Auto-refresh every 30 seconds
             setInterval(refreshData, 30000);
+
+            // Close modals with Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                    closeImageModal();
+                }
+            });
+
+            // Close image modal when clicking background
+            document.getElementById('imageModal').addEventListener('click', (ev) => {
+                if (ev.target === ev.currentTarget) closeImageModal();
+            });
+
+            // Close confirm modal when clicking background
+            document.getElementById('confirmModal').addEventListener('click', (ev) => {
+                if (ev.target === ev.currentTarget) closeModal();
+            });
         });
 
         // Authentication check
@@ -621,12 +658,14 @@
         // API call helper
         async function apiCall(endpoint) {
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                const auth = getAuthHeader();
+                if (auth) headers['Authorization'] = auth;
+
                 const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-                    headers:
-                     {
-                        'Authorization': getAuthHeader(),
-                        'Content-Type': 'application/json'
-                    }
+                    headers
                 });
 
                 if (response.status === 401) {
@@ -664,19 +703,23 @@
             // Load the drone reports management list separately
             await loadDroneReports();
 
+            const now = new Date();
             document.getElementById('lastUpdate').textContent = 
-                'Last update: ' + new Date().toLocaleTimeString();
+                'Last update: ' + now.toLocaleString();
         }
 
         // Helper to POST JSON with auth
         async function postJSON(endpoint, body) {
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                const auth = getAuthHeader();
+                if (auth) headers['Authorization'] = auth;
+
                 const response = await fetch(`${BACKEND_URL}${endpoint}`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': getAuthHeader(),
-                        'Content-Type': 'application/json'
-                    },
+                    headers,
                     body: JSON.stringify(body)
                 });
 
@@ -731,7 +774,7 @@
                 let imgHtml = '';
                 if (imageId) {
                     const url = `${BACKEND_URL}/images/${imageId}`;
-                    imgHtml = `<img src="${url}" class="thumb" onclick="showImage('${imageId}')" alt="img">`;
+                    imgHtml = `<img src="${url}" class="thumb" onclick="showImage('${imageId}', '${escapeHtml(desc)}')" alt="img">`;
                 }
 
                 html += `<tr>
@@ -747,25 +790,29 @@
 
             // Wire select all
             const selectAll = document.getElementById('selectAllReports');
-            selectAll.checked = false;
-            selectAll.onchange = () => {
-                document.querySelectorAll('.report-check').forEach(cb => cb.checked = selectAll.checked);
-            };
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.onchange = () => {
+                    document.querySelectorAll('.report-check').forEach(cb => cb.checked = selectAll.checked);
+                };
+            }
 
             // Discard button
             const btnDiscard = document.getElementById('btn-discard-selected');
-            btnDiscard.onclick = () => {
-                const selected = Array.from(document.querySelectorAll('.report-check')).filter(c=>c.checked).map(c=>c.dataset.id);
-                if (selected.length === 0) {
-                    showError('No reports selected');
-                    return;
-                }
-                // confirm
-                pendingAction = () => deleteSelectedReports(selected);
-                document.getElementById('confirmTitle').textContent = 'Discard reports';
-                document.getElementById('confirmMessage').textContent = `Discard ${selected.length} selected report(s)? This cannot be undone.`;
-                document.getElementById('confirmModal').classList.add('show');
-            };
+            if (btnDiscard) {
+                btnDiscard.onclick = () => {
+                    const selected = Array.from(document.querySelectorAll('.report-check')).filter(c=>c.checked).map(c=>c.dataset.id);
+                    if (selected.length === 0) {
+                        showError('No reports selected');
+                        return;
+                    }
+                    // confirm
+                    pendingAction = () => deleteSelectedReports(selected);
+                    document.getElementById('confirmTitle').textContent = 'Discard reports';
+                    document.getElementById('confirmMessage').textContent = `Discard ${selected.length} selected report(s)? This cannot be undone.`;
+                    document.getElementById('confirmModal').classList.add('show');
+                };
+            }
         }
 
         async function deleteSelectedReports(ids) {
@@ -774,6 +821,7 @@
             const res = await postJSON('/admin/drone-reports/delete', {ids});
             if (!res) {
                 status.textContent = 'Failed to delete';
+                setTimeout(()=> status.textContent = '', 4000);
                 return;
             }
             const modified = res.modified_count || 0;
@@ -785,32 +833,48 @@
             } else {
                 status.textContent = `No matching drone reports found`;
             }
-            // refresh UI and stats
-            await loadDroneReports();
+
+            // Refresh UI and stats — use refreshData() which will reload reports
             await refreshData();
             setTimeout(()=> status.textContent = '', 4000);
         }
 
         // Show image modal
-        function showImage(imageId) {
+        function showImage(imageId, descText='') {
             const modal = document.getElementById('imageModal');
             const img = document.getElementById('imageModalImg');
+            const meta = document.getElementById('imageModalMeta');
+            if (!modal || !img) return;
             img.src = `${BACKEND_URL}/images/${imageId}`;
+            img.alt = descText || 'report image';
+            meta.textContent = descText || '';
             modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            const img = document.getElementById('imageModalImg');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            if (img) img.src = '';
+            const meta = document.getElementById('imageModalMeta');
+            if (meta) meta.textContent = '';
         }
 
         // Escape HTML helper
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            return String(str).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
         // Update overview section
         function updateOverview(data) {
-            document.getElementById('totalPlanes').textContent = data.total_planes;
-            document.getElementById('activePlanes').textContent = data.active_planes;
-            document.getElementById('activeDrones').textContent = data.active_drones;
-            document.getElementById('archivedReports').textContent = data.archived_reports;
+            document.getElementById('totalPlanes').textContent = data.total_planes ?? '-';
+            document.getElementById('activePlanes').textContent = data.active_planes ?? '-';
+            document.getElementById('activeDrones').textContent = data.active_drones ?? '-';
+            document.getElementById('archivedReports').textContent = data.archived_reports ?? '-';
 
             // Update source stats
             let sourceHtml = '';
@@ -824,7 +888,7 @@
                 const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                 sourceHtml += `
                     <tr>
-                        <td><span class="badge badge-info">${source}</span></td>
+                        <td><span class="badge badge-info">${escapeHtml(source)}</span></td>
                         <td>${count}</td>
                         <td>
                             <div style="display: flex; align-items: center; gap: 10px;">
@@ -837,14 +901,14 @@
                     </tr>
                 `;
             });
-            document.getElementById('sourceStats').innerHTML = sourceHtml;
+            document.getElementById('sourceStats').innerHTML = sourceHtml || '<tr><td colspan="3" class="loading">No data</td></tr>';
 
             // Update drone type stats
             let droneTypeHtml = '';
             Object.entries(data.drone_types || {}).forEach(([type, count]) => {
                 droneTypeHtml += `
                     <div class="list-item">
-                        <span class="list-item-name">${type}</span>
+                        <span class="list-item-name">${escapeHtml(type)}</span>
                         <span class="list-item-value">${count}</span>
                     </div>
                 `;
@@ -856,7 +920,7 @@
             Object.entries(data.drone_altitudes || {}).forEach(([alt, count]) => {
                 altitudeHtml += `
                     <div class="list-item">
-                        <span class="list-item-name">${alt}</span>
+                        <span class="list-item-name">${escapeHtml(alt)}</span>
                         <span class="list-item-value">${count}</span>
                     </div>
                 `;
@@ -866,22 +930,22 @@
 
         // Update activity section
         function updateActivity(data) {
-            document.getElementById('recentPlanes').textContent = data.recent_planes;
-            document.getElementById('recentDrones').textContent = data.recent_drones;
-            document.getElementById('recentlyArchived').textContent = data.recently_archived;
+            document.getElementById('recentPlanes').textContent = data.recent_planes ?? '-';
+            document.getElementById('recentDrones').textContent = data.recent_drones ?? '-';
+            document.getElementById('recentlyArchived').textContent = data.recently_archived ?? '-';
 
             // Latest updates
             let updatesHtml = '';
             (data.latest_updates || []).forEach(update => {
-                const name = update.flight || update.callsign || update.icao || 'Unknown';
+                const name = escapeHtml(update.flight || update.callsign || update.icao || 'Unknown');
                 const time = update.last_seen ? new Date(update.last_seen).toLocaleTimeString() : 'N/A';
                 updatesHtml += `
                     <div class="list-item">
                         <div>
                             <div class="list-item-name">${name}</div>
-                            <div style="color: #999; font-size: 12px;">${update.source || 'unknown'} • ${time}</div>
+                            <div style="color: #999; font-size: 12px;">${escapeHtml(update.source || 'unknown')} • ${time}</div>
                         </div>
-                        <span class="badge badge-success">${update.source || 'unknown'}</span>
+                        <span class="badge badge-success">${escapeHtml(update.source || 'unknown')}</span>
                     </div>
                 `;
             });
@@ -890,7 +954,7 @@
             // Recently archived
             let archivedHtml = '';
             (data.latest_archived || []).forEach(arch => {
-                const desc = arch.drone_description || 'No description';
+                const desc = escapeHtml(arch.drone_description || 'No description');
                 const time = arch.archived_at ? new Date(arch.archived_at).toLocaleTimeString() : 'N/A';
                 archivedHtml += `
                     <div class="list-item">
@@ -904,12 +968,15 @@
             document.getElementById('recentlyArchivedList').innerHTML = archivedHtml || '<p>No recently archived</p>';
         }
 
-        // Top countries are not displayed for Belgium-only deployment
-
         // Update health section
         function updateHealth(data) {
+            if (!data) {
+                document.getElementById('healthStatus').innerHTML = `<div class="error">No health data</div>`;
+                return;
+            }
+
             if (data.error) {
-                document.getElementById('healthStatus').innerHTML = `<div class="error">Error loading health data: ${data.error}</div>`;
+                document.getElementById('healthStatus').innerHTML = `<div class="error">Error loading health data: ${escapeHtml(data.error)}</div>`;
                 return;
             }
 
@@ -920,9 +987,9 @@
                 healthHtml += `
                     <div class="list-item" style="align-items: flex-start; padding: 15px 0;">
                         <div style="flex: 1;">
-                            <div class="list-item-name" style="text-transform: capitalize; margin-bottom: 8px;">${name}</div>
+                            <div class="list-item-name" style="text-transform: capitalize; margin-bottom: 8px;">${escapeHtml(name)}</div>
                             <div style="color: #999; font-size: 12px;">
-                                Count: ${stats.count} | Size: ${stats.size_mb} MB
+                                Count: ${stats.count ?? 0} | Size: ${stats.size_mb ?? 0} MB
                                 ${stats.avg_doc_size ? `| Avg Doc: ${(stats.avg_doc_size / 1024).toFixed(2)} KB` : ''}
                             </div>
                         </div>
@@ -933,15 +1000,15 @@
             healthHtml += `
                 <div class="list-item" style="padding-top: 15px; border-top: 2px solid #f0f0f0; margin-top: 15px;">
                     <div class="list-item-name">Total Database Size</div>
-                    <div class="list-item-value">${data.total_size_mb} MB</div>
+                    <div class="list-item-value">${data.total_size_mb ?? 0} MB</div>
                 </div>
             `;
 
             document.getElementById('healthStatus').innerHTML = healthHtml;
         }
 
-        // Tab switching
-        function switchTab(tabName) {
+        // Tab switching — now receives event
+        function switchTab(tabName, event) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -951,16 +1018,17 @@
             });
 
             // Show selected tab
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            const el = document.getElementById(tabName);
+            if (el) el.classList.add('active');
+            if (event && event.target) event.target.classList.add('active');
         }
 
         // Error handling
         function showError(message) {
             const errorDiv = document.getElementById('errorContainer');
-            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            errorDiv.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
             setTimeout(() => {
-                errorDiv.innerHTML = '';
+                if (errorDiv) errorDiv.innerHTML = '';
             }, 5000);
         }
 
@@ -976,13 +1044,21 @@
 
         // Modal functions
         function closeModal() {
-            document.getElementById('confirmModal').classList.remove('show');
+            const modal = document.getElementById('confirmModal');
+            if (modal) modal.classList.remove('show');
+            pendingAction = null;
         }
 
         function confirmAction() {
-            if (pendingAction) {
-                pendingAction();
+            if (typeof pendingAction === 'function') {
+                try {
+                    pendingAction();
+                } catch (err) {
+                    console.error('Pending action error', err);
+                    showError('Action failed');
+                }
             }
+            pendingAction = null;
             closeModal();
         }
     </script>

@@ -51,41 +51,43 @@ def upload_image_to_backend(path: Path) -> str | None:
 
 def sensor_doc_to_plane(doc: dict, image_id: str | None = None) -> dict:
     """
-    Turn our sensor-style dict into something the backend /planes/bulk understands.
-    This mirrors what the airplane feed does.
+    Convert a sensor-style dict into a backend-compatible plane document.
+    Harmonized with airplane/glider schema: uses lat, lon, alt, spd, heading, ts_unix, country.
     """
     sensor_type = doc.get("sensor_type", "sensor")
-    # try to build some stable-ish id
     drone_id = doc.get("id") or f"{sensor_type}-{random.randint(10000, 99999)}"
 
     lat = doc.get("lat") or doc.get("latitude")
     lon = doc.get("lon") or doc.get("longitude")
     alt = doc.get("alt") or doc.get("altitude")
+    spd = doc.get("spd") or doc.get("speed")
+    heading = doc.get("heading")
     ts = doc.get("timestamp") or now_iso()
 
     plane_doc = {
         "icao": str(drone_id),
         "source": sensor_type.lower(),
-        "last_seen": ts,
+        "ts_unix": int(time.time()),
+        "country": "site_name",  # for frontend consistency
     }
 
-    if lat is not None and lon is not None:
-        plane_doc["position"] = {
-            "type": "Point",
-            "coordinates": [float(lon), float(lat)],
-        }
-
+    if lat is not None:
+        plane_doc["lat"] = float(lat)
+    if lon is not None:
+        plane_doc["lon"] = float(lon)
     if alt is not None:
-        plane_doc["altitude"] = alt
-
+        plane_doc["alt"] = alt
+    if spd is not None:
+        plane_doc["spd"] = spd
+    if heading is not None:
+        plane_doc["heading"] = heading
     if image_id:
         plane_doc["image_id"] = image_id
-
-    # Optionally pass through the site name for debugging/analytics
     if "site_name" in doc:
-        plane_doc["site_name"] = doc["site_name"]
+        plane_doc["country"] = doc["site_name"]
 
     return plane_doc
+
 
 
 # ====== BELGIAN SITES FOR SIMULATION ======
@@ -134,12 +136,17 @@ def generate_fake_sensor() -> dict:
     lat = base_lat + lat_jitter
     lon = base_lon + lon_jitter
 
+
+
+
+
     base = {
         "sensor_type": sensor_type,
         "timestamp": now_iso(),
         "lat": lat,
         "lon": lon,
         "alt": random.randint(30, 120) if sensor_type == "radar" else None,
+        "spd": random.randint(10, 100) if sensor_type == "radar" else None,
         "site_name": site_name,
     }
     return base

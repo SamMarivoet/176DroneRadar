@@ -12,28 +12,39 @@ document.addEventListener("DOMContentLoaded", () => {
   }).addTo(map);
 
   // --- LAYER GROUPS ---
-  const droneLayer = L.layerGroup().addTo(map);
+  
   const planeLayer = L.layerGroup().addTo(map);
-
+  const dronesReportLayer = L.layerGroup().addTo(map); // NEW LINE
+  const dronesCameraLayer = L.layerGroup().addTo(map); // NEW LINE
+  const dronesRadarLayer = L.layerGroup().addTo(map);  // NEW LINE
+  const gliderLayer = L.layerGroup().addTo(map);       // NEW LINE
+  
   // --- FILTER STATE ---
-  let showDrones = true;
+  
   let showPlanes = true;
   let showOgn = true;
+  let showDronesReport = true; // NEW LINE
+  let showDronesCamera = true; // NEW LINE
+  let showDronesRadar = true;  // NEW LINE
 
   function updateLayersVisibility() {
-    showDrones ? map.addLayer(droneLayer) : map.removeLayer(droneLayer);
+    
     showPlanes ? map.addLayer(planeLayer) : map.removeLayer(planeLayer);
+    showDronesReport ? map.addLayer(dronesReportLayer) : map.removeLayer(dronesReportLayer); // NEW LINE
+    showDronesCamera ? map.addLayer(dronesCameraLayer) : map.removeLayer(dronesCameraLayer); // NEW LINE
+    showDronesRadar ? map.addLayer(dronesRadarLayer) : map.removeLayer(dronesRadarLayer);    // NEW LINE
+    showOgn ? map.addLayer(gliderLayer) : map.removeLayer(gliderLayer);                      // NEW LINE
   }
 
   // --- FILTER EVENTS ---
-  const toggleDrones = document.getElementById('toggle-drones');
+  
   const togglePlanes = document.getElementById('toggle-planes');
   const toggleOgn = document.getElementById('toggle-ogn');
+  const toggleDronesReport = document.getElementById('toggle-drones-report'); // NEW LINE
+  const toggleDronesCamera = document.getElementById('toggle-drones-camera'); // NEW LINE
+  const toggleDronesRadar = document.getElementById('toggle-drones-radar');   // NEW LINE
 
-  toggleDrones.addEventListener('change', e => {
-    showDrones = e.target.checked;
-    updateLayersVisibility();
-  });
+
 
   togglePlanes.addEventListener('change', e => {
     showPlanes = e.target.checked;
@@ -45,6 +56,21 @@ document.addEventListener("DOMContentLoaded", () => {
     updateLayersVisibility();
   });
 
+
+  toggleDronesReport.addEventListener('change', e => { // NEW LINE
+    showDronesReport = e.target.checked;               // NEW LINE
+    updateLayersVisibility();                          // NEW LINE
+  });
+
+  toggleDronesCamera.addEventListener('change', e => { // NEW LINE
+    showDronesCamera = e.target.checked;               // NEW LINE
+    updateLayersVisibility();                          // NEW LINE
+  });
+
+  toggleDronesRadar.addEventListener('change', e => {  // NEW LINE
+    showDronesRadar = e.target.checked;                // NEW LINE
+    updateLayersVisibility();                          // NEW LINE
+  });
   // --- FETCH & RENDER ---
   async function loadPlanes() {
     try {
@@ -53,8 +79,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const planes = data.planes || [];
 
       // clear previous markers
-      droneLayer.clearLayers();
+      
       planeLayer.clearLayers();
+      dronesReportLayer.clearLayers(); // NEW LINE
+      dronesCameraLayer.clearLayers(); // NEW LINE
+      dronesRadarLayer.clearLayers();  // NEW LINE
+      gliderLayer.clearLayers();       // NEW LINE
 
       planes.forEach(p => {
         const source = (p.source || p.producer || '').toString().toLowerCase();
@@ -71,41 +101,86 @@ document.addEventListener("DOMContentLoaded", () => {
           let color;
           let droneType = p.drone_type || 'consumer';
 
-          if (isCamera) {
-            color = 'purple';
-            droneType = 'Camera Detection';
-          } else if (isRadar) {
-            color = 'darkorange';
-            droneType = 'Radar Detection';
-          } else {
-            color = getMarkerColor(droneType);
-          }
-
-          const radius = getMarkerRadius(p.altitude || p.alt || '0-50m (low)');
+        if (isCamera) {
           const marker = L.circleMarker([lat, lon], {
-            color,
-            fillColor: color,
+            color: 'purple',
+            fillColor: 'purple',
             fillOpacity: 0.8,
-            radius
+            radius: getMarkerRadius(p.altitude || p.alt || '0-50m (low)')
           }).bindPopup(`
-            <b>${capitalize(droneType)} Report</b><br>
-            Source: ${source}<br>
-            id: ${p.icao || p.icao24 || 'unknown'}<br>
-            Altitude: ${p.altitude || p.alt || ''}<br>
-            ${p.description || ''}<br>
-            <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small><br>
-            ${getDeleteButtonHTML(p.icao || p.icao24 || 'unknown')}
-          `);
-          droneLayer.addLayer(marker);
 
-          // Add delete handler after popup is shown
+            <b>Camera Detection</b><br>
+            Site: ${p.country || ''}<br> <!-- NEW LINE -->
+            Time: ${p.ts_unix ? new Date(p.ts_unix * 1000).toLocaleString() : ''}<br> 
+            ${p.image_id ? `<img src="/api/images/${p.image_id}" width="120"><br>` : ''} 
+            id: ${p.icao || p.icao24 || 'unknown'}<br>
+            ${getDeleteButtonHTML(p.icao || p.icao24 || 'unknown')}
+          `); // NEW LINE
+          dronesCameraLayer.addLayer(marker); // NEW LINE
+
+                    // Add delete handler after popup is shown
           marker.on('popupopen', () => {
             attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
           });
-        } else {
+
+        } else if (isRadar) {
+          const marker = L.circleMarker([lat, lon], {
+            color: 'darkorange',
+            fillColor: 'darkorange',
+            fillOpacity: 0.8,
+            radius: getMarkerRadius(p.altitude || p.alt || '0-50m (low)')
+          }).bindPopup(`
+            <b>Radar Detection</b><br>
+            Site: ${p.country || ''}<br> <!-- NEW LINE -->
+            Time: ${p.ts_unix ? new Date(p.ts_unix * 1000).toLocaleString() : ''}<br> 
+            Speed: ${p.speed || p.spd || ''} km/h<br> 
+            Altitude: ${p.altitude || p.alt || ''} m<br>
+            id: ${p.icao || p.icao24 || 'unknown'}<br>
+            ${getDeleteButtonHTML(p.icao || p.icao24 || 'unknown')}
+          `); // NEW LINE
+          dronesRadarLayer.addLayer(marker); // NEW LINE
+
+                    // Add delete handler after popup is shown
+          marker.on('popupopen', () => {
+            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+          });
+
+                } else if (isReport) {
+                console.log('Drone report received:', p); // 🔍 Log complet du document
+
+                let imageUrl = p.image_url;
+                if (imageUrl && imageUrl.includes('http://localhost:5000/http://localhost:5000')) {
+                  imageUrl = imageUrl.replace('http://localhost:5000/http://localhost:5000', 'http://localhost:5000');
+                }
+                const marker = L.circleMarker([lat, lon], {
+            color: 'green',
+            fillColor: 'green',
+            fillOpacity: 0.8,
+            radius: getMarkerRadius(p.altitude || p.alt || '0-50m (low)')
+          }).bindPopup(`
+            <b>Drone Report</b><br>
+            Source: ${p.source || ''}<br>
+            Time: ${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}<br>
+            ${p.notes ? `Notes: ${p.notes}<br>` : ''}
+            ${p.drone_description ? `Description: ${p.drone_description}<br>` : ''}
+            ${imageUrl ? `<img src="${imageUrl}" width="120"><br>` : ''}
+            id: ${p.icao || p.icao24 || 'unknown'}<br>
+            ${getDeleteButtonHTML(p.icao || p.icao24 || 'unknown')}
+          `);
+          dronesReportLayer.addLayer(marker); // NEW LINE
+
+                    // Add delete handler after popup is shown
+          marker.on('popupopen', () => {
+            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+          });
+
+        }
+        }
+ else {
+
           // Plane marker
-          countryOrType = "Country: ";
-          iconUrl = 'icons/plane.png';
+          let countryOrType = "Country: ";
+          let iconUrl = 'icons/plane.png';
           if (p.source == 'ogn') {
             countryOrType = "Type: ";
             if (!showOgn) return;
@@ -135,7 +210,12 @@ document.addEventListener("DOMContentLoaded", () => {
             Heading: ${Math.round(heading)}°<br>
             ${getDeleteButtonHTML(flight)}
           `);
-          planeLayer.addLayer(marker);
+          if (p.source == 'ogn') {        // NEW LINE
+            gliderLayer.addLayer(marker); // NEW LINE
+          } else {                        // NEW LINE
+            planeLayer.addLayer(marker);  // NEW LINE
+          }
+           
 
           // Add delete handler after popup is shown
           marker.on('popupopen', () => {

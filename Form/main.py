@@ -70,7 +70,7 @@ def submit_report():
             "drone_description": drone_description or None,
             "notes": notes or None,
             "photo_filename": None,
-            "image_url": None,
+            "image_url": photo or None,
         }
 
         # Handle photo if present: upload to backend images endpoint so images are stored in DB

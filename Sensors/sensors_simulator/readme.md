@@ -23,7 +23,7 @@ JSON files will be sent to the database and stocked in different sources for the
 
 PLOT ON THE MAP : 
 
-Same as for the other feed.  Just need to implemente the small IDEA described above.
+Same as for the other feed.  Just need to implement the small IDEA described above.
 
 
 

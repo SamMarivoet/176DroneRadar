@@ -87,9 +87,9 @@ async def init_default_users():
             'role': 'operator'
         },
         {
-            'username': 'airlplanefeed',
+            'username': 'airplanefeed',
             'password': settings.AIRPLANEFEED_PASSWORD,
-            'role': 'operator'
+            'role': 'airplanefeed'
         }
     ]
 

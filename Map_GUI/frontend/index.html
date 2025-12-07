@@ -36,6 +36,21 @@
       color: gray;
       margin-top: 6px;
     }
+
+    .delete-btn {
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .delete-btn:hover {
+      background-color: #c82333;
+    }
   </style>
 </head>
 
@@ -47,10 +62,17 @@
     <div id="status">Last update: never</div>
     <div style="margin-top:8px">
       <button id="btn-login" style="padding:6px 10px; border-radius:4px;">Login</button>
-      <button id="btn-admin" style="padding:6px 10px; border-radius:4px; display:none; background:#667eea; color:white; margin-top:6px; width:100%; cursor:pointer;">📊 Admin Stats</button>
-      <button id="btn-analyst" style="padding:6px 10px; border-radius:4px; display:none; background:#48bb78; color:white; margin-top:6px; width:100%; cursor:pointer;">📋 Analyst Archive</button>
-      <button id="btn-authority" style="padding:6px 10px; border-radius:4px; display:none; background:#ffb86b; color:#222; margin-top:6px; width:100%; cursor:pointer;">🚨 Authority Alerts</button>
-      <button id="btn-logout" style="padding:6px 10px; border-radius:4px; display:none; background:#ff6b6b; color:white; margin-top:6px; width:100%; cursor:pointer;">Logout</button>
+      <button id="btn-admin"
+        style="padding:6px 10px; border-radius:4px; display:none; background:#667eea; color:white; margin-top:6px; width:100%; cursor:pointer;">📊
+        Admin Stats</button>
+      <button id="btn-analyst"
+        style="padding:6px 10px; border-radius:4px; display:none; background:#48bb78; color:white; margin-top:6px; width:100%; cursor:pointer;">📋
+        Analyst Archive</button>
+      <button id="btn-authority"
+        style="padding:6px 10px; border-radius:4px; display:none; background:#ffb86b; color:#222; margin-top:6px; width:100%; cursor:pointer;">🚨
+        Authority Alerts</button>
+      <button id="btn-logout"
+        style="padding:6px 10px; border-radius:4px; display:none; background:#ff6b6b; color:white; margin-top:6px; width:100%; cursor:pointer;">Logout</button>
     </div>
     <ul id="planes"></ul>
   </div>
@@ -86,8 +108,10 @@
   <div id="map" style="width:100%; height:100vh;"></div>
 
   <!-- Simple Login Modal -->
-  <div id="login-modal" style="display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-    <div style="background:white; padding:16px; border-radius:8px; width:320px; box-shadow:0 6px 18px rgba(0,0,0,0.3); font-family:sans-serif;">
+  <div id="login-modal"
+    style="display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div
+      style="background:white; padding:16px; border-radius:8px; width:320px; box-shadow:0 6px 18px rgba(0,0,0,0.3); font-family:sans-serif;">
       <h3 style="margin-top:0;">Login</h3>
       <form id="login-form">
         <div style="margin-bottom:8px;">

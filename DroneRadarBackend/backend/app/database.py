@@ -72,14 +72,14 @@ async def init_default_users():
             'role': 'admin'
         },
         {
-            'username': 'airplanefeed',
+            'username': 'analyst',
             'password': settings.AIRPLANEFEED_PASSWORD,
-            'role': 'airplanefeed'
+            'role': 'analyst'
         },
         {
-            'username': 'operator',
+            'username': 'authority',
             'password': settings.OPERATOR_PASSWORD,
-            'role': 'operator'
+            'role': 'authority'
         }
     ]
 

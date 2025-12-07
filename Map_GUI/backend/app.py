@@ -54,6 +54,140 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
+@app.route('/api/reports', methods=['GET', 'POST'])
+def manage_reports():
+    """GET: Return all reports (drone, camera, radar).
+    POST: Create a new report."""
+    if request.method == 'GET':
+        reports = []
+        for file in DATA_DIR.glob("*.json"):
+            if file.name == "planefeed.json":
+                continue
+            try:
+                with open(file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    data['_filename'] = file.name
+                    data['_id'] = file.stem
+                    reports.append(data)
+            except Exception as e:
+                app.logger.warning(f"Error reading {file.name}: {e}")
+                continue
+        return jsonify(reports)
+    
+    elif request.method == 'POST':
+        try:
+            payload = request.get_json(force=True)
+        except Exception:
+            return jsonify({'detail': 'Invalid JSON'}), 400
+        
+        # Generate unique filename
+        import uuid
+        report_id = str(uuid.uuid4())
+        filename = f"report_{report_id}.json"
+        filepath = DATA_DIR / filename
+        
+        # Ensure required fields
+        if 'type' not in payload:
+            payload['type'] = 'drone'  # default type
+        if 'timestamp' not in payload:
+            payload['timestamp'] = time.time()
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            app.logger.info(f"Created report: {filename}")
+            return jsonify({'status': 'ok', 'id': report_id, 'filename': filename}), 201
+        except Exception as e:
+            app.logger.error(f"Failed to create report: {e}")
+            return jsonify({'detail': f'Failed to create report: {e}'}), 500
+
+
+@app.route('/api/reports/<report_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_report(report_id):
+    """GET: Get single report. PUT: Update report. DELETE: Delete report."""
+    filepath = DATA_DIR / f"report_{report_id}.json"
+    
+    if request.method == 'GET':
+        if not filepath.exists():
+            return jsonify({'detail': 'Report not found'}), 404
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                data['_id'] = report_id
+                data['_filename'] = filepath.name
+                return jsonify(data)
+        except Exception as e:
+            return jsonify({'detail': f'Error reading report: {e}'}), 500
+    
+    elif request.method == 'PUT':
+        if not filepath.exists():
+            return jsonify({'detail': 'Report not found'}), 404
+        try:
+            payload = request.get_json(force=True)
+        except Exception:
+            return jsonify({'detail': 'Invalid JSON'}), 400
+        
+        try:
+            # Read existing data
+            with open(filepath, 'r', encoding='utf-8') as f:
+                existing = json.load(f)
+            # Merge updates
+            existing.update(payload)
+            # Write back
+            with tempfile.NamedTemporaryFile('w', delete=False, dir=DATA_DIR, encoding='utf-8', suffix='.json') as tf:
+                json.dump(existing, tf, ensure_ascii=False, indent=2)
+                tmpname = tf.name
+            os.replace(tmpname, filepath)
+            app.logger.info(f"Updated report: {report_id}")
+            return jsonify({'status': 'ok', 'id': report_id})
+        except Exception as e:
+            app.logger.error(f"Failed to update report: {e}")
+            return jsonify({'detail': f'Failed to update report: {e}'}), 500
+    
+    elif request.method == 'DELETE':
+        if not filepath.exists():
+            return jsonify({'detail': 'Report not found'}), 404
+        try:
+            os.remove(filepath)
+            app.logger.info(f"Deleted report: {report_id}")
+            return jsonify({'status': 'ok', 'id': report_id})
+        except Exception as e:
+            app.logger.error(f"Failed to delete report: {e}")
+            return jsonify({'detail': f'Failed to delete report: {e}'}), 500
+
+
+@app.route('/api/alert/authority', methods=['POST'])
+def alert_authority():
+    """Receive authority alert when a report enters airport corridor.
+    Forwards the alert to the backend for storage and notification.
+    Expected payload: {
+        report: {...report data...},
+        airport: {id, name, lat, lon},
+        distance_m: number
+    }
+    """
+    try:
+        payload = request.get_json(force=True)
+    except Exception:
+        return jsonify({'detail': 'Invalid JSON'}), 400
+    
+    # Forward to backend for notification to analyst/admin
+    forward_url = f"{BACKEND_API.rstrip('/')}/alerts/authority"
+    try:
+        resp = requests.post(forward_url, json=payload, timeout=10)
+        if resp.status_code >= 200 and resp.status_code < 300:
+            app.logger.info(f"Authority alert forwarded: {payload.get('airport', {}).get('name')}")
+            return jsonify({'status': 'forwarded'}), 200
+        else:
+            app.logger.warning(f"Backend alert returned {resp.status_code}")
+            # Still accept locally even if backend is down
+            return jsonify({'status': 'accepted', 'backend_status': resp.status_code}), 202
+    except Exception as e:
+        app.logger.debug(f"Alert forward error: {e}")
+        # Accept locally, note that backend forwarding failed
+        return jsonify({'status': 'accepted_local_only', 'forward_error': str(e)}), 202
+
+
 @app.route("/api/reports")
 def get_reports():
     """Return all drone reports (JSON files except planefeed.json)."""
@@ -68,6 +202,7 @@ def get_reports():
         except Exception:
             continue
     return jsonify(reports)
+
 
 
 @app.route("/api/planes")

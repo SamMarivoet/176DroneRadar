@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authority - Airport Corridor Alerts</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        html, body, #map { height: 100%; }
+        #map { width: 100%; }
+        
+        #sidebar {
+            position: fixed;
+            right: 10px;
+            top: 10px;
+            width: 380px;
+            max-height: 90vh;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #sidebar-header {
+            padding: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            background: #ffb86b;
+            color: #222;
+        }
+        
+        #sidebar-header h3 { margin: 0 0 5px 0; font-size: 18px; }
+        #sidebar-header p { margin: 0; font-size: 12px; color: #444; }
+        
+        #alerts-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .alert {
+            background: #fff;
+            border-left: 4px solid #ff6b6b;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            font-size: 13px;
+        }
+        
+        .alert.new {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .alert-title { font-weight: bold; color: #ff6b6b; margin-bottom: 8px; }
+        .alert-airport { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .alert-distance { font-size: 12px; color: #f57c00; font-weight: bold; }
+        .alert-desc { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #333; }
+        
+        #sidebar-footer {
+            padding: 10px;
+            border-top: 2px solid #f0f0f0;
+            display: flex;
+            gap: 8px;
+            background: #f9f9f9;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            flex: 1;
+            transition: all 0.3s;
+        }
+        
+        .btn-back { background: #f0f0f0; color: #333; }
+        .btn-back:hover { background: #e0e0e0; }
+        .btn-clear { background: #48bb78; color: white; }
+        .btn-clear:hover { background: #38a169; }
+        .btn-logout { background: #ff6b6b; color: white; }
+        .btn-logout:hover { background: #ee5a5a; }
+        
+        .no-alerts { text-align: center; padding: 40px 10px; color: #999; }
+        
+        .airport-marker { font-weight: bold; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show { display: flex; }
+        
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-content h2 { color: #333; margin-bottom: 15px; }
+        
+        .field { margin-bottom: 12px; }
+        .field label { display: block; font-weight: bold; color: #666; margin-bottom: 4px; }
+        .field-value { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        
+        .copy-btn { background: #667eea; color: white; }
+        .copy-btn:hover { background: #5568d3; }
+    </style>
+    <script>
+        // Check auth and role before loading page
+        (function() {
+            const token = localStorage.getItem('auth_token');
+            const role = (localStorage.getItem('user_role') || '').toString().toLowerCase();
+            if (!token || (role !== 'authority' && role !== 'admin')) {
+                alert('Access denied. Authority or Admin role required.');
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <h3>🚨 Authority Alerts</h3>
+            <p>Corridor violations (3 km radius around airports)</p>
+        </div>
+        
+        <div id="alerts-container">
+            <div class="no-alerts">No alerts yet. Monitoring in progress...</div>
+        </div>
+        
+        <div id="sidebar-footer">
+            <button class="btn btn-back" onclick="goBack()">← Back</button>
+            <button class="btn btn-clear" onclick="clearAlerts()">Clear</button>
+            <button class="btn btn-logout" onclick="logout()">Logout</button>
+                    <button class="btn btn-info" onclick="showInfo()" style="flex: 0 0 auto; padding: 8px 10px; font-size: 16px;">ℹ️</button>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="modal">
+        <div class="modal-content">
+            <h2>ℹ️ Authority Alerts Help</h2>
+            <div style="padding: 15px; font-size: 14px; line-height: 1.6;">
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Purpose</h4>
+                <p>This page monitors drone, radar, and camera detections in real-time and alerts when they enter the 3 km protected corridor around Belgian airports.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Monitored Airports</h4>
+                <ul style="margin-left: 20px;">
+                    <li>Brussels-Zaventem (BRU)</li>
+                    <li>Brussels South Charleroi (CRL)</li>
+                    <li>Liège Airport (LGG)</li>
+                    <li>Antwerp Airport (ANR)</li>
+                    <li>Maastricht Airport (MST)</li>
+                </ul>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Detection Types</h4>
+                <p><strong>🛸 Drone Reports:</strong> Direct drone sightings and reports from the form</p>
+                <p><strong>📷 Camera Detection:</strong> Automated visual detection systems</p>
+                <p><strong>📡 Radar Detection:</strong> Radar-based detection systems</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Alert Severity</h4>
+                <p><strong>🔴 CRITICAL:</strong> &lt; 1 km from airport center</p>
+                <p><strong>🟠 HIGH:</strong> 1-2 km from airport center</p>
+                <p><strong>🟡 MEDIUM:</strong> 2-3 km from airport center</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Alert Details</h4>
+                <p>Click "View Details" on any alert to see full information including coordinates, timestamp, and JSON data. Use "Copy JSON" to share alert data with colleagues.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Backend Integration</h4>
+                <p>All corridor violations are automatically forwarded to the backend system where analysts and admins are notified for further investigation.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-back" onclick="closeInfoModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Alert Details Modal -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Alert Details</h2>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button class="btn btn-back" onclick="closeAlertModal()">Close</button>
+                <button class="btn copy-btn" onclick="copyAlertJson()">📋 Copy JSON</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="authority.js"></script>
+</body>
+</html>

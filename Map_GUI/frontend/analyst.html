@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Analyst - Archive Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { color: #333; font-size: 28px; }
+        .header-actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; }
+        .btn-danger { background: #ff6b6b; color: white; }
+        .btn-danger:hover { background: #ee5a5a; }
+        .btn-back { background: #f0f0f0; color: #333; }
+        .btn-back:hover { background: #e0e0e0; }
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .table thead { background: #f9f9f9; }
+        .table th {
+            text-align: left;
+            padding: 12px;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 600;
+        }
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+        .table tbody tr:hover { background: #f9f9f9; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-drone { background: #e3f2fd; color: #1976d2; }
+        .badge-camera { background: #f3e5f5; color: #7b1fa2; }
+        .badge-radar { background: #fff3e0; color: #e65100; }
+        .error { background: #ffe0e0; color: #c00; padding: 12px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #c00; }
+        .success { background: #e0f7e0; color: #0c0; padding: 12px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #0c0; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content h2 { margin-bottom: 15px; color: #333; }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .action-buttons { display: flex; gap: 5px; }
+        .action-buttons button { padding: 6px 10px; font-size: 12px; }
+    </style>
+    <script>
+        // Check auth and role before loading page
+        (function() {
+            const token = localStorage.getItem('auth_token');
+            const role = (localStorage.getItem('user_role') || '').toString().toLowerCase();
+            if (!token || (role !== 'analyst' && role !== 'admin')) {
+                alert('Access denied. Analyst or Admin role required.');
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📋 Analyst - Report Archive</h1>
+                <p style="color: #999; font-size: 14px;">Manage drone, camera, and radar detection reports</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-back" onclick="goBack()">← Back to Map</button>
+                <button class="btn btn-primary" onclick="toggleNewReportForm()">+ New Report</button>
+                <button class="btn btn-back" onclick="logout()">Logout</button>
+                            <button class="btn btn-back" onclick="showInfo()" style="padding: 8px 10px; font-size: 16px;">ℹ️</button>
+            </div>
+        </div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="modal">
+        <div class="modal-content">
+            <h2>ℹ️ Analyst Archive Help</h2>
+            <div style="padding: 15px; font-size: 14px; line-height: 1.6;">
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Purpose</h4>
+                <p>The Analyst Archive is the central repository for managing all drone, camera, and radar detection reports. Add, edit, and delete reports as new information becomes available.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Report Types</h4>
+                <p><strong>🛸 Drone Report:</strong> Direct drone sightings and visual confirmations</p>
+                <p><strong>📷 Camera Detection:</strong> Automated or manual visual detection system captures</p>
+                <p><strong>📡 Radar Detection:</strong> Radar-based detection and tracking</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Creating Reports</h4>
+                <p>Click "+ New Report" to add a detection. Provide coordinates (latitude/longitude), altitude, and a description of the detection.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Editing Reports</h4>
+                <p>Click "Edit" on any report in the table to update its information. Changes are saved immediately to the backend.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Deleting Reports</h4>
+                <p>Click "Delete" to remove a report. You will be asked to confirm before the report is permanently deleted.</p>
+                
+                <h4 style="margin-top: 12px; margin-bottom: 8px;">Backend Integration</h4>
+                <p>All reports are stored in a backend system where authority users can access them for corridor violation analysis and alerting. Reports can also be shared with colleagues via JSON export.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-back" onclick="closeInfoModal()">Close</button>
+            </div>
+        </div>
+    </div>
+        <div id="message-container"></div>
+
+        <!-- New Report Form -->
+        <div id="new-report-form" class="section" style="display: none;">
+            <h2>Create New Report</h2>
+            <form id="form-new-report">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Report Type *</label>
+                        <select id="form-type" required>
+                            <option value="drone">Drone Report</option>
+                            <option value="camera">Camera Detection</option>
+                            <option value="radar">Radar Detection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Timestamp</label>
+                        <input type="datetime-local" id="form-timestamp">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Latitude *</label>
+                        <input type="number" id="form-lat" step="0.0001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude *</label>
+                        <input type="number" id="form-lon" step="0.0001" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Altitude (m)</label>
+                        <input type="number" id="form-altitude">
+                    </div>
+                    <div class="form-group">
+                        <label>Drone Type / Category</label>
+                        <input type="text" id="form-drone-type" placeholder="e.g., consumer, commercial, military">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description / Notes</label>
+                    <textarea id="form-description" placeholder="Detailed information about the report..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-back" onclick="toggleNewReportForm()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Report</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Reports List -->
+        <div class="section">
+            <h2>Reports Archive</h2>
+            <div id="reports-container" class="loading">Loading reports...</div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Report</h2>
+            <form id="form-edit-report">
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="edit-type">
+                        <option value="drone">Drone Report</option>
+                        <option value="camera">Camera Detection</option>
+                        <option value="radar">Radar Detection</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" id="edit-lat" step="0.0001">
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" id="edit-lon" step="0.0001">
+                </div>
+                <div class="form-group">
+                    <label>Altitude (m)</label>
+                    <input type="number" id="edit-altitude">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="edit-description"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-back" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirm-title">Confirm Action</h2>
+            <p id="confirm-message"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-back" onclick="closeConfirmModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-btn" onclick="confirmAction()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="analyst.js"></script>
+</body>
+</html>

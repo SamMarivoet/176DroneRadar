@@ -220,42 +220,43 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateLoginUI() {
     const token = localStorage.getItem('auth_token');
     const role = (localStorage.getItem('user_role') || '').toString().toLowerCase();
+    console.log('[updateLoginUI] token:', !!token, 'role:', role, 'btnAnalyst:', !!btnAnalyst, 'btnAuthority:', !!btnAuthority);
     
     if (token) {
-      btnLogin.style.display = 'none';
-      btnLogout.style.display = 'block';
+      if (btnLogin) btnLogin.style.display = 'none';
+      if (btnLogout) btnLogout.style.display = 'block';
       
       // Show buttons based on role
       // admin sees everything
       if (role === 'admin') {
-        btnAdmin.style.display = 'block';
-        btnAnalyst.style.display = 'block';
-        btnAuthority.style.display = 'block';
+        if (btnAdmin) btnAdmin.style.display = 'block';
+        if (btnAnalyst) btnAnalyst.style.display = 'block';
+        if (btnAuthority) btnAuthority.style.display = 'block';
       } 
       // analyst sees archive
       else if (role === 'analyst') {
-        btnAdmin.style.display = 'none';
-        btnAnalyst.style.display = 'block';
-        btnAuthority.style.display = 'none';
+        if (btnAdmin) btnAdmin.style.display = 'none';
+        if (btnAnalyst) btnAnalyst.style.display = 'block';
+        if (btnAuthority) btnAuthority.style.display = 'none';
       } 
       // authority sees alerts
       else if (role === 'authority') {
-        btnAdmin.style.display = 'none';
-        btnAnalyst.style.display = 'none';
-        btnAuthority.style.display = 'block';
+        if (btnAdmin) btnAdmin.style.display = 'none';
+        if (btnAnalyst) btnAnalyst.style.display = 'none';
+        if (btnAuthority) btnAuthority.style.display = 'block';
       } 
       // unknown/other role: show nothing
       else {
-        btnAdmin.style.display = 'none';
-        btnAnalyst.style.display = 'none';
-        btnAuthority.style.display = 'none';
+        if (btnAdmin) btnAdmin.style.display = 'none';
+        if (btnAnalyst) btnAnalyst.style.display = 'none';
+        if (btnAuthority) btnAuthority.style.display = 'none';
       }
     } else {
-      btnLogin.style.display = 'block';
-      btnAdmin.style.display = 'none';
-      btnAnalyst.style.display = 'none';
-      btnAuthority.style.display = 'none';
-      btnLogout.style.display = 'none';
+      if (btnLogin) btnLogin.style.display = 'block';
+      if (btnAdmin) btnAdmin.style.display = 'none';
+      if (btnAnalyst) btnAnalyst.style.display = 'none';
+      if (btnAuthority) btnAuthority.style.display = 'none';
+      if (btnLogout) btnLogout.style.display = 'none';
     }
   }
 
@@ -331,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // success: store token and role from backend response (normalize to lowercase)
+      // success: store token and role from backend response (normalize to lowercase and map to UI roles)
       let role = (data && data.role) ? data.role : null;
       if (!role) {
         const roleCandidate = (u || '').toString().toLowerCase();
@@ -339,6 +340,16 @@ document.addEventListener("DOMContentLoaded", () => {
         else role = 'unknown';
       }
       role = role.toString().toLowerCase();
+      
+      // Map backend roles to UI roles
+      const roleMap = {
+        'airplanefeed': 'analyst',
+        'operator': 'authority',
+        'admin': 'admin',
+        'analyst': 'analyst',
+        'authority': 'authority'
+      };
+      role = roleMap[role] || role;
 
       localStorage.setItem('auth_token', `${u}:${p}`);
       localStorage.setItem('user_role', role);

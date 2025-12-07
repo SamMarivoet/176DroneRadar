@@ -60,6 +60,18 @@ async def _verify_password(username: str, password: str) -> bool:
         return False
 
 
+async def _get_user_role(username: str) -> str:
+    """Get user role from database."""
+    try:
+        user = await database.get_user(username)
+        if not user:
+            return None
+        return user.get('role', None)
+    except Exception as e:
+        logger.error(f"Error getting role for user {username}: {e}", exc_info=True)
+        return None
+
+
 async def _verify_credentials_with_ratelimit(credentials: HTTPBasicCredentials, request: Request) -> bool:
     """Verify credentials and enforce rate limiting on failed attempts."""
     # Get client IP
@@ -106,43 +118,46 @@ async def _verify_credentials_with_ratelimit(credentials: HTTPBasicCredentials, 
 
 
 async def verify_admin(credentials: HTTPBasicCredentials = Depends(security), request: Request = None):
-    """Verify admin user credentials with rate limiting."""
-    if credentials.username != "admin":
+    """Verify admin role with rate limiting."""
+    await _verify_credentials_with_ratelimit(credentials, request)
+    
+    role = await _get_user_role(credentials.username)
+    if role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin credentials required",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
-    await _verify_credentials_with_ratelimit(credentials, request)
     return credentials.username
 
 
 async def verify_airplanefeed(credentials: HTTPBasicCredentials = Depends(security), request: Request = None):
-    """Verify airplanefeed user credentials (or admin) with rate limiting."""
-    if credentials.username not in ["airplanefeed", "admin"]:
+    """Verify airplanefeed role (or admin) with rate limiting."""
+    await _verify_credentials_with_ratelimit(credentials, request)
+    
+    role = await _get_user_role(credentials.username)
+    if role not in ["airplanefeed", "admin"]:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Airplanefeed or admin role required",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
-    await _verify_credentials_with_ratelimit(credentials, request)
     return credentials.username
 
 
 async def verify_operator(credentials: HTTPBasicCredentials = Depends(security), request: Request = None):
-    """Verify operator user credentials (or admin) with rate limiting."""
-    if credentials.username not in ["operator", "admin"]:
+    """Verify operator role (or admin) with rate limiting."""
+    await _verify_credentials_with_ratelimit(credentials, request)
+    
+    role = await _get_user_role(credentials.username)
+    if role not in ["operator", "admin"]:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operator or admin role required",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
-    await _verify_credentials_with_ratelimit(credentials, request)
     return credentials.username
 
 
 # Export for use in other modules
-__all__ = ['security', 'verify_admin', 'verify_airplanefeed', 'verify_operator', '_verify_password']
+__all__ = ['security', 'verify_admin', 'verify_airplanefeed', 'verify_operator', '_verify_password', '_get_user_role']

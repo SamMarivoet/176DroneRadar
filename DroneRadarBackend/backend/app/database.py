@@ -74,12 +74,12 @@ async def init_default_users():
         {
             'username': 'analyst',
             'password': settings.ANALYST_PASSWORD,
-            'role': 'analyst'
+            'role': 'operator'
         },
         {
             'username': 'authority',
             'password': settings.AUTHORITY_PASSWORD,
-            'role': 'authority'
+            'role': 'operator'
         },
         {
             'username': 'operator',

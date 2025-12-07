@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "pass"
     AIRPLANEFEED_PASSWORD: str = "pass"
     OPERATOR_PASSWORD: str = "pass"
+    AUTHORITY_PASSWORD: str = "pass"
+    ANALYST_PASSWORD: str = "pass"
     
 
     class Config:

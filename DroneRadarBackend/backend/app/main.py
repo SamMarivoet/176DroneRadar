@@ -14,15 +14,6 @@ logger = logging.getLogger('backend.main')
 # Initialize FastAPI app
 app = FastAPI(title='Planes backend')
 
-# Add CORS middleware as the FIRST middleware (outermost)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Then add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

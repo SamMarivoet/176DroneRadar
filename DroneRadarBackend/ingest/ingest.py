@@ -33,6 +33,7 @@ from typing import Generator, Tuple, Any
 import requests
 import time
 from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 
 
 load_dotenv()
@@ -63,8 +64,17 @@ def load_json_file(path: Path) -> Any:
 def post_payload(api_url: str, payload: Any, timeout: int = 10) -> requests.Response:
     url = api_url.rstrip('/') + '/planes/bulk'
     headers = {'Content-Type': 'application/json'}
-    return requests.post(url, json=payload, headers=headers, timeout=timeout)
-
+    # Load credentials from environment
+    auth_username = os.environ.get('AUTH_USERNAME', 'admin')
+    auth_password = os.environ.get('AUTH_PASSWORD', 'pass')
+    
+    return requests.post(
+            url, 
+            json=payload, 
+            headers=headers, 
+            auth=HTTPBasicAuth(auth_username, auth_password),
+            timeout=30
+        )
 
 def wait_for_backend(api_url: str, timeout: float = 1.0, attempts: int = 30) -> bool:
     """Poll the backend /health endpoint until it responds or attempts are exhausted.

@@ -310,3 +310,27 @@ def proxy_statistics(path):
     except Exception as e:
         app.logger.debug(f"Statistics proxy error: {e}")
         return jsonify({"detail": "statistics backend unreachable"}), 502
+
+
+@app.route('/api/planes/<icao>', methods=['DELETE'])
+def proxy_delete_plane(icao: str):
+    """Proxy endpoint for deleting planes. Requires authentication."""
+    # Extract and forward auth credentials
+    auth_header = request.headers.get('Authorization', '')
+    
+    backend_url = f"{BACKEND_API.rstrip('/')}/planes/{icao}"
+    headers = {
+        'Authorization': auth_header,
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        resp = requests.delete(backend_url, headers=headers, timeout=8)
+        try:
+            data = resp.json()
+            return jsonify(data), resp.status_code
+        except Exception:
+            return Response(resp.content, status=resp.status_code)
+    except Exception as e:
+        app.logger.debug(f"Delete plane proxy error: {e}")
+        return jsonify({"detail": "backend unreachable"}), 502

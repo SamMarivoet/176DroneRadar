@@ -90,11 +90,18 @@ document.addEventListener("DOMContentLoaded", () => {
           }).bindPopup(`
             <b>${capitalize(droneType)} Report</b><br>
             Source: ${source}<br>
+            id: ${p.icao || p.icao24 || 'unknown'}<br>
             Altitude: ${p.altitude || p.alt || ''}<br>
             ${p.description || ''}<br>
-            <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small>
+            <small>${p.timestamp ? new Date(p.timestamp).toLocaleString() : ''}</small><br>
+            ${getDeleteButtonHTML(p.icao || p.icao24 || 'unknown')}
           `);
           droneLayer.addLayer(marker);
+
+          // Add delete handler after popup is shown
+          marker.on('popupopen', () => {
+            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+          });
         } else {
           // Plane marker
           countryOrType = "Country: ";
@@ -125,9 +132,15 @@ document.addEventListener("DOMContentLoaded", () => {
             ${countryOrType} ${p.country || ''}<br>
             Altitude: ${Math.round(alt)} m<br>
             Speed: ${Math.round(spd * 3.6)} km/h<br>
-            Heading: ${Math.round(heading)}°
+            Heading: ${Math.round(heading)}°<br>
+            ${getDeleteButtonHTML(flight)}
           `);
           planeLayer.addLayer(marker);
+
+          // Add delete handler after popup is shown
+          marker.on('popupopen', () => {
+            attachDeleteHandler(flight, p, marker, planeLayer);
+          });
 
           // --- trail logic ---
           const flightId = flight || `unknown-${lat}-${lon}`;
@@ -171,6 +184,57 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- UTILITIES ---
+  function getDeleteButtonHTML(flight) {
+    const role = (localStorage.getItem('user_role') || '').toString().toLowerCase();
+    const token = localStorage.getItem('auth_token');
+
+    // Only show delete button for operator or admin with valid token
+    if (token && (role === 'authority' || role === 'admin')) {
+      return `<button id="delete-plane-${flight}" class="delete-btn">Delete</button>`;
+    }
+    return '';
+  }
+
+  function attachDeleteHandler(flight, p, marker, planeLayer) {
+    const deleteBtn = document.getElementById(`delete-plane-${flight}`);
+    if (!deleteBtn) return;
+
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm(`Delete flight ${flight}?`)) return;
+
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        alert('You must be logged in to delete planes');
+        return;
+      }
+
+      try {
+        const icao = p.icao || p.icao24 || flight;
+        const [username, password] = token.split(':');
+
+        const resp = await fetch(`/api/planes/${icao}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + btoa(`${username}:${password}`)
+          }
+        });
+
+        if (resp.ok) {
+          alert('Plane deleted successfully');
+          marker.closePopup();
+          planeLayer.removeLayer(marker);
+          await loadPlanes(); // Refresh the map
+        } else {
+          const data = await resp.json();
+          alert(`Delete failed: ${data.detail || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert(`Delete error: ${err.message}`);
+      }
+    });
+  }
+
   function getMarkerColor(type) {
     switch (type) {
       case 'consumer': return 'green';
@@ -221,30 +285,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem('auth_token');
     const role = (localStorage.getItem('user_role') || '').toString().toLowerCase();
     console.log('[updateLoginUI] token:', !!token, 'role:', role, 'btnAnalyst:', !!btnAnalyst, 'btnAuthority:', !!btnAuthority);
-    
+
     if (token) {
       if (btnLogin) btnLogin.style.display = 'none';
       if (btnLogout) btnLogout.style.display = 'block';
-      
+
       // Show buttons based on role
       // admin sees everything
       if (role === 'admin') {
         if (btnAdmin) btnAdmin.style.display = 'block';
         if (btnAnalyst) btnAnalyst.style.display = 'block';
         if (btnAuthority) btnAuthority.style.display = 'block';
-      } 
+      }
       // analyst sees archive
       else if (role === 'analyst') {
         if (btnAdmin) btnAdmin.style.display = 'none';
         if (btnAnalyst) btnAnalyst.style.display = 'block';
         if (btnAuthority) btnAuthority.style.display = 'none';
-      } 
+      }
       // authority sees alerts
       else if (role === 'authority') {
         if (btnAdmin) btnAdmin.style.display = 'none';
         if (btnAnalyst) btnAnalyst.style.display = 'none';
         if (btnAuthority) btnAuthority.style.display = 'block';
-      } 
+      }
       // unknown/other role: show nothing
       else {
         if (btnAdmin) btnAdmin.style.display = 'none';
@@ -340,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
         else role = 'unknown';
       }
       role = role.toString().toLowerCase();
-      
+
       // Map backend roles to UI roles
       const roleMap = {
         'airplanefeed': 'analyst',

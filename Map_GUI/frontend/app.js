@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (p.source == 'ogn') {
             countryOrType = "Type: ";
             if (!showOgn) return;
-            iconUrl = 'icons/gliderrr.png';
+            iconUrl = 'icons/GliderC.png';
           }
 
           const icon = L.icon({

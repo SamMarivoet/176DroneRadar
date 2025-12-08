@@ -1,13 +1,13 @@
 <!doctype html>
 
 
-<html>
+<html lang="en">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ADSB Web GUI</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
   <style>
     html,
     body,
@@ -55,8 +55,8 @@
 </head>
 
 <body>
-  <div id="map"></div>
-  <div id="sidebar">
+  <div id="map" style="width:100%; height:100vh;"></div>
+    <div id="sidebar">
     <h3>ADSB Feed</h3>
     <p>Updating automatically every 5 seconds.</p>
     <div id="status">Last update: never</div>
@@ -107,8 +107,7 @@
     <label><input type="checkbox" id="toggle-ogn" checked> Gliders (OGN) </label>
   </div>
 
-  <div id="map" style="width:100%; height:100vh;"></div>
-
+  
   <!-- Simple Login Modal -->
   <div id="login-modal"
     style="display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
@@ -118,11 +117,11 @@
       <form id="login-form">
         <div style="margin-bottom:8px;">
           <label for="login-username">Username</label><br>
-          <input id="login-username" name="username" type="text" style="width:100%; padding:6px;" />
+          <input id="login-username" name="username" type="text" style="width:100%; padding:6px;">
         </div>
         <div style="margin-bottom:8px;">
           <label for="login-password">Password</label><br>
-          <input id="login-password" name="password" type="password" style="width:100%; padding:6px;" />
+          <input id="login-password" name="password" type="password" style="width:100%; padding:6px;">
         </div>
         <div id="login-error" style="color:#a00; display:none; margin-bottom:8px;"></div>
         <div style="text-align:right">

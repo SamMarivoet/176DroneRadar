@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // Add delete handler after popup is shown
           marker.on('popupopen', () => {
-            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+            attachDeleteHandler(p.icao || p.icao24, p, marker, dronesCameraLayer);
           });
 
         } else if (isRadar) {
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // Add delete handler after popup is shown
           marker.on('popupopen', () => {
-            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+            attachDeleteHandler(p.icao || p.icao24, p, marker, dronesRadarLayer);
           });
 
                 } else if (isReport) {
@@ -171,12 +171,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // Add delete handler after popup is shown
           marker.on('popupopen', () => {
-            attachDeleteHandler(p.icao || p.icao24, p, marker, droneLayer);
+            attachDeleteHandler(p.icao || p.icao24, p, marker, dronesReportLayer);
           });
 
         }
         }
- else {
+      else {
 
           // Plane marker
           let countryOrType = "Country: ";
